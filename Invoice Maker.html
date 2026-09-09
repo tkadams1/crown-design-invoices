@@ -151,6 +151,7 @@
       <label>Address <textarea id="s-address" rows="2"></textarea></label>
       <label>Phone <input id="s-phone"></label>
       <label>Mail program, only if Email cannot find Thunderbird (full path to thunderbird.exe) <input id="s-mailer" placeholder="leave blank to find it automatically"></label>
+      <label>Printer for the Print button <select id="s-printer"><option value="auto">Automatic: his real printer, never “Print to PDF”</option><option value="ask">Ask every time (print dialog)</option></select></label>
       <label>Agreement sentence (top of every invoice) <input id="s-intro"></label>
       <div class="row">
         <label>Overhead % <input id="s-overhead" type="number" min="0" step="0.5"></label>
@@ -297,7 +298,7 @@ const store = (k, v) => {
 const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
 const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('en-US') : '';
 
-const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
+const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', printer: 'auto', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
 const file = desktop ? await desktop.loadData() : null;   // { settings, invoices } from invoices.json, or null on first run
 let settings = { ...DEFAULTS, ...(file?.settings ?? load('im.settings', {})) };
 let invoices = file?.invoices ?? load('im.invoices', []);
@@ -463,9 +464,11 @@ $('#c-type').oninput = e => $('#c-delete').disabled = e.target.value.trim().toLo
 $('#c-type').onkeydown = e => { if (e.key === 'Enter' && !$('#c-delete').disabled) $('#c-delete').click(); };
 $('#c-cancel').onclick = () => { $('#confirm').hidden = true; $('#editor').hidden = false; };
 $('#c-delete').onclick = () => { invoices = invoices.filter(i => i !== cur); store('im.invoices', invoices); cur = null; $('#confirm').hidden = true; showHome(); };
-$('#print').onclick = () => {
-  document.title = pdfName();   // becomes the PDF file name
-  window.print();
+$('#print').onclick = async () => {
+  if (!desktop) { document.title = pdfName(); return window.print(); }   // plain browser: the print dialog
+  $('#saved').textContent = 'Printing…';
+  const r = await desktop.print(settings.printer || 'auto');
+  $('#saved').textContent = r === 'dialog' ? '' : r.startsWith('error:') ? `Could not print: ${r.slice(6)}` : `Sent to ${r}`;
 };
 const pdfName = () => `Invoice ${cur.number} - ${((cur.customer || cur.address).split('\n')[0] || '').trim()}`;
 $('#pdf').onclick = async () => {
@@ -523,6 +526,13 @@ $('#restore-file').onchange = async e => {
   } catch { alert('That file is not a valid backup.'); }
   e.target.value = '';
 };
+
+// ---------- Printer choice (desktop app only) ----------
+if (desktop) desktop.printers().then(list => {
+  for (const p of list) { const o = document.createElement('option'); o.value = p.name; o.textContent = p.name + (p.isDefault ? ' (Windows default)' : '') + (p.virtual ? ' (makes a file, not paper)' : ''); $('#s-printer').append(o); }
+  $('#s-printer').value = list.some(p => p.name === settings.printer) || ['auto', 'ask'].includes(settings.printer) ? settings.printer : 'auto';
+});
+$('#s-printer').onchange = e => { settings.printer = e.target.value; store('im.settings', settings); };
 
 // ---------- Zoom (editor page only; print is unaffected) ----------
 function setZoom(z) {

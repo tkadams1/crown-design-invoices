@@ -107,6 +107,20 @@ ipcMain.handle('checkForUpdates', () => app.isPackaged ? autoUpdater.checkForUpd
 ipcMain.handle('installUpdate', () => autoUpdater.quitAndInstall());
 ipcMain.handle('version', () => app.getVersion());
 
+// ---------- Printing ----------
+// "Microsoft Print to PDF" is often the Windows default printer. Skip virtual printers and send straight to the real one.
+const VIRTUAL = /pdf|xps|onenote|fax|send to/i;
+const realPrinter = list => list.find(p => p.isDefault && !VIRTUAL.test(p.name)) || list.find(p => !VIRTUAL.test(p.name));
+ipcMain.handle('printers', async () => (await win.webContents.getPrintersAsync()).map(p => ({ name: p.name, isDefault: p.isDefault, virtual: VIRTUAL.test(p.name) })));
+ipcMain.handle('print', async (e, choice) => {   // choice: 'auto' | 'ask' | exact printer name  ->  printer name used, 'dialog', or 'error:...'
+  const list = await win.webContents.getPrintersAsync();
+  const p = choice === 'ask' ? null : list.find(x => x.name === choice) || realPrinter(list);
+  if (!p) { win.webContents.print({ printBackground: true }); return 'dialog'; }
+  return new Promise(res => win.webContents.print(
+    { silent: true, deviceName: p.name, printBackground: true, pageSize: 'Letter', margins: { marginType: 'none' } },
+    (ok, err) => res(ok ? p.name : 'error:' + err)));
+});
+
 ipcMain.handle('savePdf', (e, name) => savePdf(name));
 ipcMain.handle('email', (e, opts) => email(opts));
 ipcMain.handle('backup', (e, name, json) => backup(name, json));

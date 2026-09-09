@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('api', {
   openBackups: () => ipcRenderer.invoke('openBackups'),
   loadData: () => ipcRenderer.invoke('loadData'),                        // -> { settings, invoices } or null
   saveData: json => ipcRenderer.invoke('saveData', json),                // whole data set as JSON text
+  printers: () => ipcRenderer.invoke('printers'),                        // -> [{ name, isDefault, virtual }]
+  print: choice => ipcRenderer.invoke('print', choice),                  // 'auto' | 'ask' | printer name
   version: () => ipcRenderer.invoke('version'),
   checkForUpdates: () => ipcRenderer.invoke('checkForUpdates'),
   installUpdate: () => ipcRenderer.invoke('installUpdate'),
