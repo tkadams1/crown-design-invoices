@@ -9,8 +9,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm test
@@ -20,10 +20,11 @@ jobs:
           $v = node -e "const v=require('./package.json').version.split('.');console.log(v[0]+'.'+v[1]+'.'+process.env.GITHUB_RUN_NUMBER)"
           npm version $v --no-git-tag-version
           "VERSION=$v" >> $env:GITHUB_ENV
-      - name: Tag        # GitHub only accepts a published release for a tag that already exists
-        run: |
-          git tag "v$env:VERSION"
-          git push origin "v$env:VERSION"
+      # create tag + release up front; electron-builder then only uploads into it (letting it create the release races and makes duplicates)
+      - name: Create release
+        run: gh release create "v$env:VERSION" --target $env:GITHUB_SHA --title "$env:VERSION" --notes "Automatic build of $env:GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npx electron-builder --win nsis --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
