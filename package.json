@@ -18,7 +18,8 @@
       "main.js",
       "preload.js",
       "Invoice Maker.html",
-      "invoice.ico"
+      "invoice.ico",
+      "logo.png"
     ],
     "directories": {
       "output": "dist"

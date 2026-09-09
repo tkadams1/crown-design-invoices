@@ -4,5 +4,6 @@ dist/
 # local files, never in the public repo
 *.pdf
 *.png
+!logo.png
 .vscode/
 TODO
