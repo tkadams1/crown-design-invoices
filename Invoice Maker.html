@@ -56,6 +56,12 @@
   .confirm { max-width: 640px; font-size: 22px; }
   .confirm input { width: 100%; box-sizing: border-box; font-size: 24px; padding: 12px; margin: 8px 0 24px; }
   .confirm .row { display: flex; gap: 16px; }
+  dialog { border: 1px solid #ccc; border-radius: 12px; padding: 24px; font-size: 20px; }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  dialog label { display: block; margin-bottom: 16px; }
+  dialog input { display: block; width: 100%; box-sizing: border-box; font-size: 24px; margin-top: 8px; }
+  dialog .row { display: flex; gap: 12px; }
+  dialog .row button { flex: 1; }
   .confirm .row button { flex: 1; }
   button:disabled { opacity: .4; cursor: not-allowed; }
   details { margin-top: 32px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; }
@@ -157,6 +163,14 @@
     </details>
   </main>
 </section>
+
+<dialog id="pass">
+  <form method="dialog">
+    <label>Admin passcode <input id="pass-in" type="password" inputmode="numeric" autocomplete="off" autofocus></label>
+    <p id="pass-msg" style="color:#b91c1c;margin:-8px 0 16px;min-height:1.2em"></p>
+    <div class="row"><button value="cancel" class="secondary" formnovalidate>Cancel</button><button value="ok">Unlock</button></div>
+  </form>
+</dialog>
 
 <section id="confirm" hidden>
   <div class="bar"><h1>Delete invoice</h1></div>
@@ -402,8 +416,13 @@ $('#new').onclick = newInvoice;
 $('#admin').onclick = () => {   // ponytail: passcode is a "keep out" sign for the front page, not security; the code is readable in this file
   const d = $('#settings');
   if (!d.hidden) { d.hidden = true; return; }
-  if (prompt('Admin passcode') === String(settings.passcode)) { d.hidden = false; d.open = true; d.scrollIntoView({ behavior: 'smooth' }); }
-  else alert('Wrong passcode.');
+  $('#pass-in').value = ''; $('#pass-msg').textContent = ''; $('#pass').showModal();
+};
+$('#pass form').onsubmit = e => {
+  if (e.submitter?.value !== 'ok') return;   // Cancel just closes
+  const d = $('#settings');
+  if ($('#pass-in').value === String(settings.passcode)) { d.hidden = false; d.open = true; d.scrollIntoView({ behavior: 'smooth' }); }
+  else { e.preventDefault(); $('#pass-msg').textContent = 'Wrong passcode, try again.'; $('#pass-in').select(); }
 };
 $('#back').onclick = showHome;
 $('#search').oninput = renderList;
@@ -430,23 +449,23 @@ $('#print').onclick = () => {
   document.title = pdfName();   // becomes the PDF file name
   window.print();
 };
-const api = window.api;   // set by preload.js inside the desktop app; missing when the file is opened in a plain browser
+const desktop = window.api;   // set by preload.js inside the desktop app; missing when the file is opened in a plain browser
 const pdfName = () => `Invoice ${cur.number} - ${((cur.customer || cur.address).split('\n')[0] || '').trim()}`;
 $('#pdf').onclick = async () => {
-  if (!api) { $('#saved').textContent = 'In the print window, choose “Save as PDF” as the printer.'; return $('#print').click(); }
-  $('#saved').textContent = `PDF saved: ${await api.savePdf(pdfName())}`;
+  if (!desktop) { $('#saved').textContent = 'In the print window, choose “Save as PDF” as the printer.'; return $('#print').click(); }
+  $('#saved').textContent = `PDF saved: ${await desktop.savePdf(pdfName())}`;
 };
 $('#email').onclick = async () => {
   const who = (cur.customer.split('\n')[0] || '').trim();
   const to = cur.email.trim();
   const subject = `Invoice ${cur.number} from ${settings.company}`;
   const body = `Hello${who ? ' ' + who : ''},\n\nAttached is invoice #${cur.number} for the work at ${(cur.address.split('\n')[0] || 'your address').trim()}. The total is ${fmt(totals(cur).final)}.\n\nThank you,\n${settings.company}\n${settings.phone}`;
-  if (!api) {   // plain browser: mailto cannot carry an attachment
+  if (!desktop) {   // plain browser: mailto cannot carry an attachment
     location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     return $('#saved').textContent = 'Your mail program is opening. Attach the PDF you saved.';
   }
-  const pdf = await api.savePdf(pdfName());
-  const ok = await api.email({ to, subject, body, pdf });
+  const pdf = await desktop.savePdf(pdfName());
+  const ok = await desktop.email({ to, subject, body, pdf });
   $('#saved').textContent = ok ? 'Thunderbird is opening with the PDF attached.' : `Thunderbird not found. PDF saved: ${pdf}`;
 };
 addEventListener('afterprint', () => document.title = 'Crown Design Invoices');
@@ -463,13 +482,13 @@ function download(name) {
   URL.revokeObjectURL(a.href);
 }
 $('#backup').onclick = () => download(`invoices-backup-${today()}.json`);
-$('#folder').onclick = () => api ? api.openBackups() : alert('Daily backups only run in the desktop app.');
+$('#folder').onclick = () => desktop ? desktop.openBackups() : alert('Daily backups only run in the desktop app.');
 
 async function dailyBackup() {   // desktop app only: once a day write invoices-auto-<date>.json into the app's own data folder
   const last = localStorage.getItem('im.lastBackup');
   $('#auto').textContent = last ? `Last automatic backup: ${fmtDate(last)}` : 'No automatic backup yet.';
-  if (!api || !invoices.length || last === today()) return;
-  await api.backup(`invoices-auto-${today()}.json`, JSON.stringify({ settings, invoices }, null, 2));
+  if (!desktop || !invoices.length || last === today()) return;
+  await desktop.backup(`invoices-auto-${today()}.json`, JSON.stringify({ settings, invoices }, null, 2));
   localStorage.setItem('im.lastBackup', today());
   $('#auto').textContent = `Last automatic backup: ${fmtDate(today())}`;
 }

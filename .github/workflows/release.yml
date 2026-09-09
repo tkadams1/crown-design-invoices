@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npm test
+      - run: npm test   # money math + Electron smoke run (fails on any page error)
       # major.minor from package.json, patch = run number, so every push to main is a new, higher version the updater will pick up
       - name: Version
         run: |

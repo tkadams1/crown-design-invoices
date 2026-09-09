@@ -16,7 +16,10 @@ app.whenReady().then(() => {
     const check = () => autoUpdater.checkForUpdatesAndNotify().catch(() => {});
     check(); setInterval(check, 4 * 60 * 60 * 1000);
   }
-  if (process.env.SMOKE) win.webContents.once('did-finish-load', smoke);
+  if (process.argv.includes('--smoke')) {
+    win.webContents.on('console-message', ev => { if (ev.level === 'error') { console.error(`page error line ${ev.lineNumber}: ${ev.message}`); process.exitCode = 1; } });
+    win.webContents.once('did-finish-load', smoke);
+  }
 });
 app.on('window-all-closed', () => app.quit());
 
@@ -62,9 +65,11 @@ ipcMain.handle('email', (e, opts) => email(opts));
 ipcMain.handle('backup', (e, name, json) => backup(name, json));
 ipcMain.handle('openBackups', () => shell.openPath(backupDir()));
 
-async function smoke() {   // SMOKE=1 npm start : exercise the file paths without clicking, then quit
-  console.log('pdf    ', await savePdf('Smoke test'));
-  console.log('backup ', backup('invoices-auto-smoke.json', '{"settings":{},"invoices":[]}'));
+async function smoke() {   // electron . --smoke : load the page, click New Invoice, exercise the file paths, fail on any page error, quit
+  const shown = await win.webContents.executeJavaScript(`document.querySelector('#new').click(); !document.querySelector('#editor').hidden`);
+  if (!shown) { console.error('New Invoice button did nothing'); process.exitCode = 1; }
+  const pdf = await savePdf('Smoke test'); console.log('pdf    ', pdf); fs.rmSync(pdf);
+  const bak = backup('invoices-auto-smoke.json', '{}'); console.log('backup ', bak); fs.rmSync(bak);
   console.log('tb     ', findThunderbird() || '(not installed)');
   app.quit();
 }
