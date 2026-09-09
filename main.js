@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
+const { pathToFileURL } = require('node:url');
 const { autoUpdater } = require('electron-updater');
 
 let win;
@@ -31,21 +32,27 @@ async function savePdf(name) {
   return file;
 }
 
-function findThunderbird() {
-  const candidates = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA].filter(Boolean)
-    .map(d => path.join(d, 'Mozilla Thunderbird', 'thunderbird.exe'));
+function findThunderbird(custom) {   // admin-panel override first, then the Windows registry, then the usual folders
+  const candidates = custom ? [custom] : [];
+  if (process.platform === 'win32') {
+    for (const key of ['HKLM\\SOFTWARE\\Clients\\Mail\\Mozilla Thunderbird\\shell\\open\\command', 'HKCU\\SOFTWARE\\Clients\\Mail\\Mozilla Thunderbird\\shell\\open\\command',
+                        'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\thunderbird.exe', 'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\thunderbird.exe']) {
+      try { const m = execFileSync('reg', ['query', key, '/ve'], { encoding: 'utf8', windowsHide: true }).match(/"?([A-Z]:\\[^"\r\n]*?thunderbird\.exe)/i); if (m) candidates.push(m[1]); } catch {}
+    }
+  }
+  for (const d of [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA].filter(Boolean)) candidates.push(path.join(d, 'Mozilla Thunderbird', 'thunderbird.exe'));
   candidates.push('/Applications/Thunderbird.app/Contents/MacOS/thunderbird');
   return candidates.find(p => fs.existsSync(p));
 }
 
-function email({ to = '', subject = '', body = '', pdf }) {
-  const tb = findThunderbird();
+function email({ to = '', subject = '', body = '', pdf, mailer }) {
+  const tb = findThunderbird(mailer);
   if (!tb) {   // no Thunderbird: fall back to the default mail program, which cannot take the attachment
     shell.openExternal(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
     return false;
   }
   const q = s => `'${String(s).replace(/'/g, '’').replace(/"/g, '”')}'`;   // -compose quotes values with ' and has no escape for it
-  const compose = `to=${q(to)},subject=${q(subject)},body=${q(body)}` + (pdf ? `,attachment=${q(pdf)}` : '');
+  const compose = `to=${q(to)},subject=${q(subject)},body=${q(body)}` + (pdf ? `,attachment=${q(pathToFileURL(pdf).href)}` : '');   // file:// URL is the form Thunderbird documents
   spawn(tb, ['-compose', compose], { detached: true, stdio: 'ignore' }).unref();
   return true;
 }

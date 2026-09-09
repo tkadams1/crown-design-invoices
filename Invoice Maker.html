@@ -18,6 +18,8 @@
   .bar .logo { width: 44px; height: auto; }
   .bar .logo [fill="#111"] { fill: #1a56db; }
   main { max-width: 900px; margin: 0 auto; padding: 24px; }
+  #editor main { zoom: var(--zoom, 1); }
+  #zoom { font-size: 16px; color: #555; min-width: 4ch; text-align: center; margin: 0 -6px; }
   .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
   .stat { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; }
   .stat b { display: block; font-size: 26px; color: #111; letter-spacing: 0; margin-top: 2px; }
@@ -104,7 +106,7 @@
   @media print {
     body { background: #fff; }
     .no-print, #home, button { display: none !important; }
-    main { max-width: none; padding: 0.5in 0.6in; }
+    main { max-width: none; padding: 0.5in 0.6in; zoom: 1; }
     #doc { border: 0; box-shadow: none; padding: 0; font-size: 12pt; }
     input, textarea { border: 0; padding: 0; background: none; font-size: inherit; color: #000; }
     ::placeholder { color: transparent; }
@@ -148,6 +150,7 @@
       <label>Admin passcode <input id="s-passcode" inputmode="numeric" autocomplete="off"></label>
       <label>Address <textarea id="s-address" rows="2"></textarea></label>
       <label>Phone <input id="s-phone"></label>
+      <label>Mail program, only if Email cannot find Thunderbird (full path to thunderbird.exe) <input id="s-mailer" placeholder="leave blank to find it automatically"></label>
       <label>Agreement sentence (top of every invoice) <input id="s-intro"></label>
       <div class="row">
         <label>Overhead % <input id="s-overhead" type="number" min="0" step="0.5"></label>
@@ -197,6 +200,7 @@
     <button id="print">🖨 Print</button>
     <button id="pdf">💾 Save as PDF</button>
     <button id="email">📧 Email</button>
+    <button id="zout" class="secondary" title="Smaller">A−</button><span id="zoom">100%</span><button id="zin" class="secondary" title="Bigger">A+</button>
     <button id="delete" class="danger">Delete</button>
     <span id="saved"></span>
   </div>
@@ -287,7 +291,7 @@ const store = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
 const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('en-US') : '';
 
-const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
+const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
 let settings = { ...DEFAULTS, ...load('im.settings', {}) };
 let invoices = load('im.invoices', []);
 let cur = null;   // invoice open in the editor
@@ -471,12 +475,12 @@ $('#email').onclick = async () => {
     return $('#saved').textContent = 'Your mail program is opening. Attach the PDF you saved.';
   }
   const pdf = await desktop.savePdf(pdfName());
-  const ok = await desktop.email({ to, subject, body, pdf });
+  const ok = await desktop.email({ to, subject, body, pdf, mailer: settings.mailer });
   $('#saved').textContent = ok ? 'Thunderbird is opening with the PDF attached.' : `Thunderbird not found. PDF saved: ${pdf}`;
 };
 addEventListener('afterprint', () => document.title = 'Crown Design Invoices');
 
-for (const [id, key] of [['s-company', 'company'], ['s-passcode', 'passcode'], ['s-address', 'address'], ['s-phone', 'phone'], ['s-intro', 'intro'], ['s-overhead', 'overheadPct'], ['s-profit', 'profitPct']]) {
+for (const [id, key] of [['s-company', 'company'], ['s-passcode', 'passcode'], ['s-address', 'address'], ['s-phone', 'phone'], ['s-mailer', 'mailer'], ['s-intro', 'intro'], ['s-overhead', 'overheadPct'], ['s-profit', 'profitPct']]) {
   $('#' + id).value = settings[key];
   $('#' + id).oninput = e => { settings[key] = e.target.value; store('im.settings', settings); };
 }
@@ -512,6 +516,17 @@ $('#restore-file').onchange = async e => {
   } catch { alert('That file is not a valid backup.'); }
   e.target.value = '';
 };
+
+// ---------- Zoom (editor page only; print is unaffected) ----------
+function setZoom(z) {
+  settings.zoom = Math.min(1.6, Math.max(0.6, Math.round(z * 10) / 10));
+  document.documentElement.style.setProperty('--zoom', settings.zoom);
+  $('#zoom').textContent = Math.round(settings.zoom * 100) + '%';
+  store('im.settings', settings);
+}
+$('#zin').onclick = () => setZoom(settings.zoom + 0.1);
+$('#zout').onclick = () => setZoom(settings.zoom - 0.1);
+setZoom(settings.zoom || 1);
 
 // ---------- Updates (desktop app only) ----------
 const updText = {
