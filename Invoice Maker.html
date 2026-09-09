@@ -18,7 +18,8 @@
   .bar .logo { height: 56px; width: auto; }
   main { max-width: 900px; margin: 0 auto; padding: 24px; }
   #editor main { zoom: var(--zoom, 1); }
-  #zoom { font-size: 16px; color: #555; min-width: 4ch; text-align: center; margin: 0 -6px; }
+  .zoomer { display: flex; align-items: center; gap: 6px; margin: 0 auto; }   /* centred in the gap between Email and Delete */
+  #zoom { font-size: 16px; color: #555; min-width: 4ch; text-align: center; }
   .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
   .stat { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; }
   .stat b { display: block; font-size: 26px; color: #111; letter-spacing: 0; margin-top: 2px; }
@@ -71,7 +72,7 @@
   details input, details textarea { width: 100%; box-sizing: border-box; }
   details .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
   details .row label { flex: 1; }
-  #saved { color: #15803d; font-size: 17px; margin-left: auto; }
+  #saved { color: #15803d; font-size: 17px; }
 
   /* The invoice document itself */
   #doc { background: #fff; padding: 48px; border: 1px solid #ddd; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
@@ -197,9 +198,9 @@
     <button id="print">🖨 Print</button>
     <button id="pdf">💾 Save as PDF</button>
     <button id="email">📧 Email</button>
-    <button id="zout" class="secondary" title="Smaller">A−</button><span id="zoom">100%</span><button id="zin" class="secondary" title="Bigger">A+</button>
-    <button id="delete" class="danger">Delete</button>
     <span id="saved"></span>
+    <span class="zoomer"><button id="zout" class="secondary" title="Zoom out">🔍−</button><span id="zoom">100%</span><button id="zin" class="secondary" title="Zoom in">🔍+</button></span>
+    <button id="delete" class="danger">Delete</button>
   </div>
   <main>
     <div class="track no-print">
