@@ -126,6 +126,13 @@ ipcMain.handle('email', (e, opts) => email(opts));
 ipcMain.handle('backup', (e, name, json) => backup(name, json));
 ipcMain.handle('openBackups', () => shell.openPath(backupDir()));
 
+// US Census geocoder: every US street address, free, no key. Called from here because it does not allow calls straight from a page.
+ipcMain.handle('geocode', async (e, q) => {
+  const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&format=json&address=${encodeURIComponent(q)}`;
+  const j = await (await fetch(url, { signal: AbortSignal.timeout(8000) })).json();
+  return (j.result?.addressMatches ?? []).map(m => ({ matched: m.matchedAddress, lat: m.coordinates.y, lon: m.coordinates.x }));
+});
+
 async function smoke() {   // electron . --smoke : load the page, click New Invoice, exercise the file paths, fail on any page error, quit
   const shown = await win.webContents.executeJavaScript(`document.querySelector('#new').click(); !document.querySelector('#editor').hidden`);
   if (!shown) { console.error('New Invoice button did nothing'); process.exitCode = 1; }

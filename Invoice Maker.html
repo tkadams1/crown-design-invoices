@@ -27,6 +27,15 @@
   .stat.jobs { grid-column: span 2; }
   .stat.due b { color: #b91c1c; }
   #list .due { font-size: 15px; color: #b91c1c; font-weight: normal; text-align: right; }
+  /* Map of jobs */
+  #mapbox { margin: 0 0 16px; padding: 0; overflow: hidden; }
+  #mapbox summary { padding: 12px 16px; }
+  #map { height: 400px; background: #e5e7eb; }
+  #map.offline { display: grid; place-items: center; color: #666; }
+  #legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 10px 16px; font-size: 16px; color: #374151; }
+  #legend i, .pin { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 6px; vertical-align: -2px; border: 2px solid #fff; box-shadow: 0 0 0 1px #999; }
+  .leaflet-popup-content { font-size: 17px; line-height: 1.35; }
+  .leaflet-popup-content button { min-height: 40px; margin-top: 8px; font-size: 16px; }
   #search { width: 100%; box-sizing: border-box; font-size: 22px; padding: 12px; margin-bottom: 16px; }
   #list .month { position: sticky; top: var(--bar, 85px); z-index: 1; display: block; padding: 6px 16px; margin: 8px 0 10px; background: #f2f2f2; border: 0; border-bottom: 2px solid #1a56db; border-radius: 0; font-weight: bold; font-size: 18px; color: #1a56db; cursor: default; }
   #list { list-style: none; padding: 0; margin: 0; }
@@ -138,6 +147,11 @@
   <div class="bar"><img class="logo" src="logo.png" alt=""><h1>Crown Design Invoices</h1><button id="admin" class="secondary">⚙ Admin</button><button id="new">+ New Invoice</button></div>
   <main>
     <div id="stats" class="stats"></div>
+    <details id="mapbox" open>
+      <summary>Map of jobs</summary>
+      <div id="map"></div>
+      <div id="legend"></div>
+    </details>
     <input id="search" type="search" placeholder="Search by name, address, date, or number" aria-label="Search invoices">
     <ul id="list"></ul>
     <p id="empty" hidden>No invoices yet. Press “+ New Invoice” to start.</p>
@@ -281,6 +295,9 @@ function totals(inv) {
   const profit = pctOf(sub, inv.profitPct);   // profit is taken on the subtotal, after overhead
   return { cost, overhead, sub, profit, final: sub + profit };
 }
+// Map: an invoice is looked up once per distinct address; inv.geo = { q, lat, lon } on a hit, { q } on a miss.
+const geoKey = a => String(a ?? '').replace(/\s+/g, ' ').trim();
+const needsGeo = inv => !!geoKey(inv.address) && !(inv.geo?.q === geoKey(inv.address) && inv.geo.src === 'census');
 </script>
 
 <script type="module">
@@ -323,6 +340,7 @@ function showHome() {
   $('#editor').hidden = true; $('#home').hidden = false;
   renderList();
   dailyBackup();
+  geocodeAll();
 }
 
 function renderList() {
@@ -349,6 +367,67 @@ function renderList() {
     li.onclick = () => openInvoice(inv);
     $('#list').append(li);
   }
+  renderMap(rows);
+}
+
+// ---------- Map (needs internet: OpenStreetMap tiles, addresses located by Nominatim) ----------
+let map, pins, leaflet;
+const color = s => { const i = document.createElement('i'); i.dataset.s = s || ''; document.body.append(i); const c = getComputedStyle(i).getPropertyValue('--fg').trim(); i.remove(); return c || '#6b7280'; };   // same colour as the status badge
+$('#legend').innerHTML = ['', ...STATUSES].map(s => `<span><i style="background:${color(s)}"></i>${s || 'No status'}</span>`).join('');
+import('https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js').then(L => {
+  leaflet = L;
+  const css = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', onload: () => { map.invalidateSize(); if (!$('#home').hidden) renderList(); } });   // fit the pins only once the map has its real size
+  document.head.append(css);
+  map = L.map('map', { scrollWheelZoom: false }).setView([39.5, -98.35], 4);   // wheel scrolls the page, not the map; the +/- buttons zoom
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+  pins = L.layerGroup().addTo(map);
+  $('#mapbox').ontoggle = () => map.invalidateSize();
+}).catch(() => { $('#map').className = 'offline'; $('#map').textContent = 'The map needs an internet connection.'; });
+
+function renderMap(rows) {   // the same invoices the list shows, so the tiles and the search box filter the map too
+  const located = rows.filter(i => i.geo?.lat);
+  $('#mapbox summary').textContent = `Map of jobs · ${located.length} of ${rows.length} on the map`;
+  if (!map) return;
+  pins.clearLayers();
+  for (const inv of located) {
+    leaflet.circleMarker([inv.geo.lat, inv.geo.lon], { radius: 10, color: '#fff', weight: 2, fillColor: color(inv.status), fillOpacity: 1 }).addTo(pins).bindPopup(() => {
+      const d = document.createElement('div');
+      d.innerHTML = '<div class="who"></div><div class="sub"></div><div class="sub addr"></div><span class="status"></span><div class="sub money"></div><button>Open invoice</button>';
+      d.querySelector('.who').textContent = (inv.customer || '').split('\n').find(l => l.trim()) || '(no customer yet)';
+      d.querySelector('.sub').textContent = `#${inv.number} · ${fmtDate(inv.date)}`;
+      d.querySelector('.addr').textContent = geoKey(inv.address);
+      d.querySelector('.status').dataset.s = inv.status || ''; d.querySelector('.status').textContent = inv.status || 'No status';
+      const due = balance(inv); d.querySelector('.money').textContent = fmt(totals(inv).final) + (due > 0 ? ` · ${fmt(due)} due` : '');
+      d.querySelector('button').onclick = () => openInvoice(inv);
+      return d;
+    }, { minWidth: 240 });
+  }
+  if (located.length) map.fitBounds(leaflet.latLngBounds(located.map(i => [i.geo.lat, i.geo.lon])), { padding: [30, 30], maxZoom: 13 });
+}
+
+let geocoding = false;
+async function geocodeAll() {   // look up any invoice whose address has no location yet, one per second, saving as it goes
+  if (geocoding) return;
+  geocoding = true;
+  try {
+    for (const inv of invoices.filter(needsGeo)) {
+      const q = geoKey(inv.address);
+      const [hit] = await lookup(q);
+      inv.geo = hit ? { q, lat: hit.lat, lon: hit.lon, src: 'census' } : { q, src: 'census' };   // a miss is remembered too, so a bad address is not looked up on every visit
+      store('im.invoices', invoices);
+      if (!$('#home').hidden) renderList();
+      await new Promise(r => setTimeout(r, 1000));   // be polite to the free service: one lookup per second
+    }
+  } catch {} finally { geocoding = false; }
+}
+
+// ---------- Address lookup (US Census geocoder, via main.js) ----------
+const homeTail = () => (settings.address || '').split('\n').map(l => l.trim()).filter(Boolean).pop() || '';   // "Birmingham, AL 35205" from the company address
+async function lookup(q) {   // -> [{ lat, lon }]. A bare "2200 Highland Ave" is retried with his own city and state added.
+  if (!desktop) return [];
+  let hits = await desktop.geocode(q);
+  if (!hits.length && homeTail()) hits = await desktop.geocode(`${q}, ${homeTail()}`);
+  return hits;
 }
 
 function newInvoice() {

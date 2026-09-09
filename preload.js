@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('api', {
   email: opts => ipcRenderer.invoke('email', opts),                      // { to, subject, body, pdf } -> true if Thunderbird opened
   backup: (name, json) => ipcRenderer.invoke('backup', name, json),      // -> full path of the backup file
   openBackups: () => ipcRenderer.invoke('openBackups'),
+  geocode: q => ipcRenderer.invoke('geocode', q),                          // -> [{ matched: 'STREET, CITY, ST, ZIP', lat, lon }] from the US Census geocoder
   loadData: () => ipcRenderer.invoke('loadData'),                        // -> { settings, invoices } or null
   saveData: json => ipcRenderer.invoke('saveData', json),                // whole data set as JSON text
   printers: () => ipcRenderer.invoke('printers'),                        // -> [{ name, isDefault, virtual }]

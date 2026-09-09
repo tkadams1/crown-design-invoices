@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const html = readFileSync(new URL('./Invoice Maker.html', import.meta.url), 'utf8');
 const src = html.match(/<script id="lib">([\s\S]*?)<\/script>/)[1];
-const { toCents, fmt, totals } = new Function(src + '; return { toCents, fmt, totals };')();
+const { toCents, fmt, totals, needsGeo } = new Function(src + '; return { toCents, fmt, totals, needsGeo };')();
 
 assert.equal(toCents('$ 6,743.00'), 674300);
 assert.equal(toCents('650'), 65000);
@@ -35,5 +35,13 @@ assert.equal(t.final, 3520253);
 
 // zero percentages
 assert.deepEqual(totals({ sections: [{ items: [{ amount: '100' }] }], overheadPct: '', profitPct: '0' }), { cost: 10000, overhead: 0, sub: 10000, profit: 0, final: 10000 });
+
+// map lookups: only addresses that have not been looked up yet, misses included
+assert.equal(needsGeo({ address: '' }), false);
+assert.equal(needsGeo({ address: ' 12 Main St\nSpringfield ' }), true);
+assert.equal(needsGeo({ address: ' 12 Main St\nSpringfield ', geo: { q: '12 Main St Springfield', lat: 1, lon: 2, src: 'census' } }), false);
+assert.equal(needsGeo({ address: '12 Main St Springfield', geo: { q: '12 Main St Springfield', lat: 1, lon: 2 } }), true);   // located by the old service: look it up again
+assert.equal(needsGeo({ address: '12 Main St Springfield', geo: { q: '12 Main St Springfield', src: 'census' } }), false);   // a miss is not retried
+assert.equal(needsGeo({ address: '13 Main St Springfield', geo: { q: '12 Main St Springfield', lat: 1, lon: 2, src: 'census' } }), true);   // address changed
 
 console.log('ok');
