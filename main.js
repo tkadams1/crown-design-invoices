@@ -12,10 +12,6 @@ app.whenReady().then(() => {
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
   win.loadFile('Invoice Maker.html');
-  if (app.isPackaged) {   // pull new releases from GitHub; the update installs itself the next time he closes the app. App data lives in userData and is untouched.
-    const check = () => autoUpdater.checkForUpdatesAndNotify().catch(() => {});
-    check(); setInterval(check, 4 * 60 * 60 * 1000);
-  }
   if (process.argv.includes('--smoke')) {
     win.webContents.on('console-message', ev => { if (ev.level === 'error') { console.error(`page error line ${ev.lineNumber}: ${ev.message}`); process.exitCode = 1; } });
     win.webContents.once('did-finish-load', smoke);
@@ -59,6 +55,21 @@ function backup(name, json) {
   fs.writeFileSync(file, json);
   return file;
 }
+
+// Updates: the page decides when to check (its "check automatically" setting); we report progress back to it.
+// A downloaded update installs when he closes the app, or at once via installUpdate(). App data in userData is untouched.
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+const report = (state, extra = {}) => win?.webContents.send('update', { state, ...extra });
+autoUpdater.on('checking-for-update', () => report('checking'));
+autoUpdater.on('update-available', i => report('available', { version: i.version }));
+autoUpdater.on('update-not-available', () => report('none'));
+autoUpdater.on('download-progress', p => report('downloading', { percent: Math.round(p.percent) }));
+autoUpdater.on('update-downloaded', i => report('ready', { version: i.version }));
+autoUpdater.on('error', e => report('error', { message: String(e?.message || e) }));
+ipcMain.handle('checkForUpdates', () => app.isPackaged ? autoUpdater.checkForUpdates().catch(() => null) : report('dev'));
+ipcMain.handle('installUpdate', () => autoUpdater.quitAndInstall());
+ipcMain.handle('version', () => app.getVersion());
 
 ipcMain.handle('savePdf', (e, name) => savePdf(name));
 ipcMain.handle('email', (e, opts) => email(opts));

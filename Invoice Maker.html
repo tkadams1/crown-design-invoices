@@ -160,6 +160,12 @@
         <input id="restore-file" type="file" accept=".json" hidden>
       </div>
       <p id="auto" style="color:#555;font-size:16px;margin:12px 0 0"></p>
+      <div class="row" style="margin-top:20px;align-items:center">
+        <label style="flex:none;margin:0"><input id="s-autoUpdate" type="checkbox" style="width:auto"> Check for updates automatically</label>
+        <button id="check" class="secondary">Check for updates</button>
+        <button id="install" hidden>Restart and update now</button>
+      </div>
+      <p id="upd" style="color:#555;font-size:16px;margin:12px 0 0"></p>
     </details>
   </main>
 </section>
@@ -281,7 +287,7 @@ const store = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
 const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('en-US') : '';
 
-const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
+const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
 let settings = { ...DEFAULTS, ...load('im.settings', {}) };
 let invoices = load('im.invoices', []);
 let cur = null;   // invoice open in the editor
@@ -506,6 +512,28 @@ $('#restore-file').onchange = async e => {
   } catch { alert('That file is not a valid backup.'); }
   e.target.value = '';
 };
+
+// ---------- Updates (desktop app only) ----------
+const updText = {
+  checking: () => 'Checking GitHub for a new version…',
+  available: i => `Version ${i.version} found, downloading…`,
+  downloading: i => `Downloading update… ${i.percent}%`,
+  ready: i => `Version ${i.version} is downloaded. It installs when the app is closed, or click "Restart and update now".`,
+  none: () => 'You have the latest version.',
+  error: i => `Could not check for updates: ${i.message}`,
+  dev: () => 'Update checks only work in the installed app.',
+};
+async function showVersion(msg = '') { $('#upd').textContent = `Version ${desktop ? await desktop.version() : '(browser)'}${msg ? ' · ' + msg : ''}`; }
+$('#s-autoUpdate').checked = settings.autoUpdate !== false;
+$('#s-autoUpdate').onchange = e => { settings.autoUpdate = e.target.checked; store('im.settings', settings); };
+$('#check').onclick = () => desktop ? desktop.checkForUpdates() : showVersion(updText.dev());
+$('#install').onclick = () => desktop.installUpdate();
+if (desktop) {
+  desktop.onUpdate(i => { showVersion(updText[i.state]?.(i) ?? i.state); $('#install').hidden = i.state !== 'ready'; });
+  const auto = () => { if (settings.autoUpdate !== false) desktop.checkForUpdates(); };
+  auto(); setInterval(auto, 4 * 60 * 60 * 1000);   // on launch and every four hours while it stays open
+}
+showVersion();
 
 showHome();
 </script>

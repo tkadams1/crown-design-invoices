@@ -6,7 +6,7 @@ A small desktop app (Electron) for writing, printing, and emailing job invoices.
 
 Every push to `main` runs the GitHub Action in `.github/workflows/release.yml`. It builds the Windows installer on a Windows runner, numbers it `1.0.<run number>`, and publishes it as a GitHub Release with the files the auto-updater reads. Nothing to do by hand.
 
-The installed app checks GitHub for a newer release when it opens and every four hours after that. A new version downloads in the background and installs itself the next time he closes the app. Invoices, settings, and backups live in `%APPDATA%\Crown Design Invoices`, which the installer never touches, so nothing is lost on an update or a reinstall.
+The installed app checks GitHub for a newer release when it opens and every four hours after that, as long as **Check for updates automatically** is ticked in the admin panel. A new version downloads in the background and installs itself the next time he closes the app. The admin panel also shows the installed version, has a **Check for updates** button with live status, and a **Restart and update now** button once a download is ready. Invoices, settings, and backups live in `%APPDATA%\Crown Design Invoices`, which the installer never touches, so nothing is lost on an update or a reinstall.
 
 To build locally instead: `npm install` then `npm run dist` (installer lands in `dist/`). If npm's script guard skipped the Electron download, run `node node_modules/electron/install.js` once. `npm start` runs the app on the Mac.
 

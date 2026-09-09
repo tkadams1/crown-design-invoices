@@ -5,4 +5,8 @@ contextBridge.exposeInMainWorld('api', {
   email: opts => ipcRenderer.invoke('email', opts),                      // { to, subject, body, pdf } -> true if Thunderbird opened
   backup: (name, json) => ipcRenderer.invoke('backup', name, json),      // -> full path of the backup file
   openBackups: () => ipcRenderer.invoke('openBackups'),
+  version: () => ipcRenderer.invoke('version'),
+  checkForUpdates: () => ipcRenderer.invoke('checkForUpdates'),
+  installUpdate: () => ipcRenderer.invoke('installUpdate'),
+  onUpdate: cb => ipcRenderer.on('update', (e, info) => cb(info)),   // { state: checking|available|downloading|ready|none|error|dev, version?, percent?, message? }
 });
