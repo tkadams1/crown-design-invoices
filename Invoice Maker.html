@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crown Design Invoices</title>
+<style>
+  :root { font-family: Arial, Helvetica, sans-serif; font-size: 20px; color: #111; }
+  body { margin: 0; background: #f2f2f2; }
+  button { font: inherit; min-height: 52px; padding: 0 20px; border-radius: 8px; border: 2px solid #1a56db; background: #1a56db; color: #fff; cursor: pointer; }
+  button.secondary { background: #fff; color: #1a56db; }
+  button.danger { background: #fff; color: #b91c1c; border-color: #b91c1c; }
+  button.rm { min-height: 36px; padding: 0 10px; font-size: 18px; background: #fff; color: #666; border: 1px solid #ccc; }
+  input, textarea { font: inherit; padding: 6px 8px; border: 1px solid #bbb; border-radius: 4px; background: #fff; color: inherit; }
+  textarea { resize: none; field-sizing: content; }
+  .bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 16px 24px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 1; }
+  .bar h1 { margin: 0; flex: 1; font-size: 28px; }
+  .bar .logo { width: 44px; height: auto; }
+  .bar .logo [fill="#111"] { fill: #1a56db; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; }
+  .stat b { display: block; font-size: 26px; color: #111; letter-spacing: 0; margin-top: 2px; }
+  .stat.due { grid-column: span 3; border-color: #fca5a5; background: #fef2f2; }
+  .stat.jobs { grid-column: span 2; }
+  .stat.due b { color: #b91c1c; }
+  #list .due { font-size: 15px; color: #b91c1c; font-weight: normal; text-align: right; }
+  #search { width: 100%; box-sizing: border-box; font-size: 22px; padding: 12px; margin-bottom: 16px; }
+  #list .month { position: sticky; top: var(--bar, 85px); z-index: 1; display: block; padding: 6px 16px; margin: 8px 0 10px; background: #f2f2f2; border: 0; border-bottom: 2px solid #1a56db; border-radius: 0; font-weight: bold; font-size: 18px; color: #1a56db; cursor: default; }
+  #list { list-style: none; padding: 0; margin: 0; }
+  #list li { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; padding: 16px; background: #fff; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
+  #list li:hover { border-color: #1a56db; }
+  #list .who { font-weight: bold; }
+  #list .sub { color: #555; font-size: 17px; }
+  .status { display: inline-block; padding: 4px 14px; border-radius: 999px; font-size: 16px; font-weight: bold; white-space: nowrap; background: #e5e7eb; color: #374151; }
+  .status[data-s=""] { background: none; color: #999; font-weight: normal; }
+  /* one colour per status, shared by the list badge, the home tiles, and the Status box */
+  [data-s="Ready to begin"]  { --bg: #dbeafe; --fg: #1e40af; }
+  [data-s="Work started"]    { --bg: #ede9fe; --fg: #5b21b6; }
+  [data-s="Work completed"]  { --bg: #cffafe; --fg: #155e75; }
+  [data-s="Partially paid"]  { --bg: #fef3c7; --fg: #92400e; }
+  [data-s="Fully paid"]      { --bg: #dcfce7; --fg: #166534; }
+  .status[data-s]:not([data-s=""]), .track select[data-s]:not([data-s=""]) { background: var(--bg); color: var(--fg); border-color: var(--fg); }
+  .stat[data-s]:not([data-s=""]) { background: var(--bg); border-color: var(--fg); color: var(--fg); }
+  .stat[data-s]:not([data-s=""]) b { color: var(--fg); }
+  .track { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 16px 24px; margin-bottom: 16px; padding: 14px 20px 18px; background: #f8fafc; border: 1px solid #cbd5e1; border-left: 5px solid #1a56db; border-radius: 8px; }
+  .track-head { grid-column: 1 / -1; font-weight: bold; color: #1e293b; }
+  .track-head small { font-weight: normal; color: #64748b; margin-left: 8px; }
+  .track label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
+  .track output { font-size: 22px; font-weight: bold; color: #b91c1c; padding: 6px 0; }
+  .track output.ok { color: #15803d; }
+  .track label { min-width: 0; }
+  .track select, .track input { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; text-transform: none; letter-spacing: 0; color: #111; padding: 8px 10px; border: 1px solid #bbb; border-radius: 6px; background: #fff; }
+  #list .total { font-weight: bold; font-size: 22px; align-self: center; }
+  #empty { color: #666; text-align: center; padding: 40px; }
+  .confirm { max-width: 640px; font-size: 22px; }
+  .confirm input { width: 100%; box-sizing: border-box; font-size: 24px; padding: 12px; margin: 8px 0 24px; }
+  .confirm .row { display: flex; gap: 16px; }
+  .confirm .row button { flex: 1; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  details { margin-top: 32px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; }
+  summary { cursor: pointer; font-weight: bold; }
+  details label { display: block; margin: 12px 0; }
+  details input, details textarea { width: 100%; box-sizing: border-box; }
+  details .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  details .row label { flex: 1; }
+  #saved { color: #15803d; font-size: 17px; margin-left: auto; }
+
+  /* The invoice document itself */
+  #doc { background: #fff; padding: 48px; border: 1px solid #ddd; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 16px; border-bottom: 3px solid #111; }
+  .company { font-size: 26px; font-weight: bold; }
+  .company .fine { font-size: 16px; font-weight: normal; color: #444; white-space: pre-line; margin-top: 4px; }
+  .inv { text-align: right; }
+  .inv .word { font-size: 34px; font-weight: bold; letter-spacing: .14em; color: #555; margin-bottom: 8px; }
+  .inv label { display: flex; gap: 8px; justify-content: flex-end; align-items: baseline; margin-bottom: 6px; font-size: 16px; color: #555; }
+  .lbl { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #666; margin-bottom: 4px; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 20px 0; }
+  .meta textarea, .meta input { width: 100%; box-sizing: border-box; display: block; }
+  .meta textarea { min-height: 2.4em; }
+  .meta input { margin-top: 6px; }
+  #f-intro { width: 100%; box-sizing: border-box; }
+  #sections { padding-left: 32px; margin: 24px 0 8px; }
+  .section { margin-bottom: 20px; }
+  .sec-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .sec-title { flex: 1; font-weight: bold; }
+  .item { display: grid; grid-template-columns: 1fr 150px auto; gap: 8px; margin-bottom: 6px; align-items: start; }
+  .item .desc { width: 100%; box-sizing: border-box; }
+  .amt { text-align: right; }
+  .totals { margin-left: auto; margin-top: 24px; border-collapse: collapse; }
+  .totals td { padding: 6px 12px; text-align: right; white-space: nowrap; }
+  .totals td:first-child { text-align: left; }
+  .totals input { width: 60px; text-align: right; padding: 2px 4px; }
+  .totals .sub td { border-top: 1px solid #111; }
+  .totals .final td { font-weight: bold; font-size: 24px; border-top: 3px solid #111; }
+
+  @page { margin: 0; }   /* no browser header/footer (url, page #, date) */
+  @media print {
+    body { background: #fff; }
+    .no-print, #home, button { display: none !important; }
+    main { max-width: none; padding: 0.5in 0.6in; }
+    #doc { border: 0; box-shadow: none; padding: 0; font-size: 12pt; }
+    input, textarea { border: 0; padding: 0; background: none; font-size: inherit; color: #000; }
+    ::placeholder { color: transparent; }
+    input[type=date]::-webkit-calendar-picker-indicator { display: none; }
+    .company { font-size: 20pt; }
+    .company .fine { font-size: 10pt; }
+    .inv .word { font-size: 24pt; }
+    .inv label { font-size: 10pt; }
+    .lbl { font-size: 8pt; }
+    .meta input { margin: 0; } .meta textarea { min-height: 0; }
+    .meta input:placeholder-shown { display: none; }   /* empty phone/email leave no gap on paper */
+    .sec-head { border-bottom: 1px solid #999; padding-bottom: 3px; }
+    .sec-title { text-transform: uppercase; letter-spacing: .04em; }
+    .item { grid-template-columns: 1fr 120px; margin: 0; padding: 4px 0; border-bottom: 1px dotted #ccc; }
+    .item:last-child { border-bottom: 0; }
+    .totals input { width: 3ch; }
+    .totals { margin-top: 24px; }
+    .totals td { padding: 5px 14px; }
+    .totals .final td { font-size: 14pt; border-bottom: 1px solid #111; }
+    .section, .totals { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<section id="home">
+  <div class="bar"><svg class="logo" viewBox="0 0 64 52" aria-hidden="true">
+      <path d="M6 42 L2 14 L18 26 L32 4 L46 26 L62 14 L58 42 Z" fill="#111"/>
+      <rect x="6" y="45" width="52" height="5" rx="1" fill="#111"/>
+      <circle cx="32" cy="4" r="3.5" fill="#111"/><circle cx="2" cy="14" r="3" fill="#111"/><circle cx="62" cy="14" r="3" fill="#111"/>
+      <circle cx="32" cy="34" r="3" fill="#fff"/><circle cx="18" cy="36" r="2.2" fill="#fff"/><circle cx="46" cy="36" r="2.2" fill="#fff"/>
+    </svg><h1>Crown Design Invoices</h1><button id="admin" class="secondary">⚙ Admin</button><button id="new">+ New Invoice</button></div>
+  <main>
+    <div id="stats" class="stats"></div>
+    <input id="search" type="search" placeholder="Search by name, address, date, or number" aria-label="Search invoices">
+    <ul id="list"></ul>
+    <p id="empty" hidden>No invoices yet. Press “+ New Invoice” to start.</p>
+    <details id="settings" hidden>
+      <summary>Company info &amp; backup</summary>
+      <label>Company name <input id="s-company"></label>
+      <label>Admin passcode <input id="s-passcode" inputmode="numeric" autocomplete="off"></label>
+      <label>Address <textarea id="s-address" rows="2"></textarea></label>
+      <label>Phone <input id="s-phone"></label>
+      <label>Agreement sentence (top of every invoice) <input id="s-intro"></label>
+      <div class="row">
+        <label>Overhead % <input id="s-overhead" type="number" min="0" step="0.5"></label>
+        <label>Profit % <input id="s-profit" type="number" min="0" step="0.5"></label>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <button id="backup" class="secondary">Save backup file</button>
+        <button id="restore" class="secondary">Restore from backup</button>
+        <button id="folder" class="secondary">Open daily backups folder</button>
+        <input id="restore-file" type="file" accept=".json" hidden>
+      </div>
+      <p id="auto" style="color:#555;font-size:16px;margin:12px 0 0"></p>
+    </details>
+  </main>
+</section>
+
+<section id="confirm" hidden>
+  <div class="bar"><h1>Delete invoice</h1></div>
+  <main class="confirm">
+    <p>Are you sure you want to delete the invoice for <b id="c-who"></b> at <b id="c-where"></b>?</p>
+    <p>This cannot be undone. Type <b>delete</b> below to confirm.</p>
+    <input id="c-type" autocomplete="off" placeholder="type delete here" aria-label="Type delete to confirm">
+    <div class="row">
+      <button id="c-cancel" class="secondary">◀ Keep it</button>
+      <button id="c-delete" class="danger" disabled>Delete for good</button>
+    </div>
+  </main>
+</section>
+
+<section id="editor" hidden>
+  <div class="bar no-print">
+    <button id="back" class="secondary">◀ All Invoices</button>
+    <button id="print">🖨 Print</button>
+    <button id="pdf">💾 Save as PDF</button>
+    <button id="email">📧 Email</button>
+    <button id="delete" class="danger">Delete</button>
+    <span id="saved"></span>
+  </div>
+  <main>
+    <div class="track no-print">
+      <div class="track-head">Job tracking <small>private, never printed</small></div>
+      <label>Status <select id="f-status">
+        <option value="">Status…</option>
+        <option>Ready to begin</option>
+        <option>Work started</option>
+        <option>Work completed</option>
+        <option>Partially paid</option>
+        <option>Fully paid</option>
+      </select></label>
+      <label>Start date <input id="f-start" type="date"></label>
+      <label>Completion date <input id="f-end" type="date"></label>
+      <label>Paid so far <input id="f-paid" class="amt" inputmode="decimal" placeholder="0.00"></label>
+      <label>Balance due <output id="t-due"></output></label>
+    </div>
+    <article id="doc">
+      <header class="head">
+        <div class="company"><div id="d-company"></div><div id="d-address" class="fine"></div><div id="d-phone" class="fine"></div></div>
+        <div class="inv">
+          <div class="word">INVOICE</div>
+          <label>Date <input id="f-date" type="date"></label>
+          <label>Invoice # <input id="f-number" size="8"></label>
+        </div>
+      </header>
+      <div class="meta">
+        <div>
+          <div class="lbl">Customer</div>
+          <textarea id="f-customer" rows="2" placeholder="Customer name" aria-label="Customer"></textarea>
+          <input id="f-phone" type="tel" placeholder="Customer phone" aria-label="Customer phone">
+          <input id="f-email" type="email" placeholder="Customer email" aria-label="Customer email">
+        </div>
+        <div><div class="lbl">Job address</div><textarea id="f-address" rows="3" placeholder="Street, city, state, zip" aria-label="Job address"></textarea></div>
+      </div>
+      <input id="f-intro" placeholder="Agreement sentence" aria-label="Agreement sentence">
+      <ol id="sections"></ol>
+      <button id="add-section" class="secondary no-print">+ Add Area (bathroom, painting, …)</button>
+      <table class="totals">
+        <tr><td>Total cost of materials and labor</td><td id="t-cost"></td></tr>
+        <tr id="r-overhead"><td><input id="f-overhead" size="3" inputmode="decimal" aria-label="Overhead percent">% overhead</td><td id="t-overhead"></td></tr>
+        <tr class="sub"><td>Sub total</td><td id="t-sub"></td></tr>
+        <tr id="r-profit"><td><input id="f-profit" size="3" inputmode="decimal" aria-label="Profit percent">% profit</td><td id="t-profit"></td></tr>
+        <tr class="final"><td>Final job cost</td><td id="t-final"></td></tr>
+      </table>
+    </article>
+  </main>
+</section>
+
+<template id="t-section">
+  <li class="section">
+    <div class="sec-head">
+      <input class="sec-title" placeholder="Area (e.g. master bath)" aria-label="Area name">
+      <button class="rm no-print" tabindex="-1" title="Remove this area">✕</button>
+    </div>
+    <div class="items"></div>
+    <button class="add-item rm no-print" tabindex="-1">+ Add line</button>
+  </li>
+</template>
+<template id="t-item">
+  <div class="item">
+    <textarea class="desc" rows="1" placeholder="Description of work" aria-label="Description of work"></textarea>
+    <input class="amt" inputmode="decimal" placeholder="0.00" aria-label="Amount">
+    <button class="rm no-print" tabindex="-1" title="Remove this line">✕</button>
+  </div>
+</template>
+
+<script id="lib">
+// Money math. Cents as integers. Kept in its own script block so test.mjs can run it.
+const toCents = s => { const n = parseFloat(String(s ?? '').replace(/[^0-9.-]/g, '')); return (Number.isFinite(n) ? Math.round(n * 100) : 0) || 0; };   // "|| 0" turns -0 into 0
+const fmt = c => (c < 0 ? '-' : '') + '$' + (Math.abs(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pctOf = (c, p) => Math.round(c * (parseFloat(p) || 0) / 100);
+function totals(inv) {
+  const cost = inv.sections.flatMap(s => s.items).reduce((a, i) => a + toCents(i.amount), 0);
+  const overhead = pctOf(cost, inv.overheadPct);
+  const sub = cost + overhead;
+  const profit = pctOf(sub, inv.profitPct);   // profit is taken on the subtotal, after overhead
+  return { cost, overhead, sub, profit, final: sub + profit };
+}
+</script>
+
+<script>
+const $ = s => document.querySelector(s);
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const store = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
+const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('en-US') : '';
+
+const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
+let settings = { ...DEFAULTS, ...load('im.settings', {}) };
+let invoices = load('im.invoices', []);
+let cur = null;   // invoice open in the editor
+
+// ---------- Home ----------
+const STATUSES = ['Ready to begin', 'Work started', 'Work completed', 'Partially paid', 'Fully paid'];
+const balance = inv => inv.status === 'Fully paid' ? 0 : Math.max(0, totals(inv).final - toCents(inv.paid));   // "Fully paid" wins even if he never typed the amount
+
+function renderStats() {
+  const tile = (label, value, cls = '', q = '') => `<div class="stat ${cls}" data-q="${q}" data-s="${q}">${label}<b>${value}</b></div>`;
+  $('#stats').innerHTML = tile('Outstanding payments', fmt(invoices.reduce((a, i) => a + balance(i), 0)), 'due')
+    + tile('Jobs', invoices.length, 'jobs')
+    + STATUSES.map(st => tile(st, invoices.filter(i => i.status === st).length, '', st)).join('');
+}
+$('#stats').onclick = e => { const t = e.target.closest('.stat'); if (t) { $('#search').value = t.dataset.q; renderList(); } };   // click a status tile to filter the list
+
+const isBlank = inv => !(inv.customer || '').trim() && !inv.address.trim() && inv.sections.every(s => !s.title.trim() && s.items.every(i => !i.desc.trim() && !i.amount.trim()));
+
+function showHome() {
+  if (cur && isBlank(cur)) { invoices = invoices.filter(i => i !== cur); store('im.invoices', invoices); }
+  cur = null;
+  $('#editor').hidden = true; $('#home').hidden = false;
+  renderList();
+  dailyBackup();
+}
+
+function renderList() {
+  renderStats();
+  const q = $('#search').value.trim().toLowerCase();
+  const rows = invoices
+    .filter(i => !q || [i.number, i.date, fmtDate(i.date), i.customer, i.phone, i.email, i.address, i.status, fmtDate(i.start), fmtDate(i.end)].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);   // newest invoice date first, so months group together
+  $('#list').innerHTML = '';
+  $('#empty').hidden = rows.length > 0;
+  document.documentElement.style.setProperty('--bar', $('#home .bar').offsetHeight + 'px');   // month headers stick just under the title bar
+  let month = '';
+  for (const inv of rows) {
+    const m = inv.date ? new Date(inv.date + 'T00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'No date';
+    if (m !== month) { month = m; const h = document.createElement('li'); h.className = 'month'; h.textContent = m; $('#list').append(h); }
+    const li = document.createElement('li');
+    li.innerHTML = '<div><div class="who"></div><div class="sub"></div></div><span class="status"></span><div class="total"></div>';
+    li.querySelector('.who').textContent = (inv.customer || '').split('\n').find(l => l.trim()) || inv.address.split('\n').find(l => l.trim()) || '(no customer yet)';
+    li.querySelector('.sub').textContent = [`#${inv.number} · ${fmtDate(inv.date)}`, inv.start && `started ${fmtDate(inv.start)}`, inv.end && `completed ${fmtDate(inv.end)}`].filter(Boolean).join(' · ');
+    li.querySelector('.status').dataset.s = inv.status || ''; li.querySelector('.status').textContent = inv.status || 'No status';
+    li.querySelector('.total').textContent = fmt(totals(inv).final);
+    const due = balance(inv);
+    if (due > 0 && toCents(inv.paid)) { const d = document.createElement('div'); d.className = 'due'; d.textContent = `${fmt(due)} due`; li.querySelector('.total').append(d); }
+    li.onclick = () => openInvoice(inv);
+    $('#list').append(li);
+  }
+}
+
+function newInvoice() {
+  const next = Math.max(0, ...invoices.map(i => parseInt(i.number) || 0)) + 1;
+  const inv = { id: Date.now().toString(36), number: String(next), date: today(), status: '', start: '', end: '', paid: '', customer: '', phone: '', email: '', address: '', intro: settings.intro,
+    sections: [{ title: '', items: [{ desc: '', amount: '' }] }], overheadPct: settings.overheadPct, profitPct: settings.profitPct, updatedAt: Date.now() };
+  invoices.push(inv);
+  openInvoice(inv);
+  $('#f-customer').focus();
+}
+
+// ---------- Editor ----------
+function openInvoice(inv) {
+  dailyBackup();
+  cur = inv;
+  $('#home').hidden = true; $('#editor').hidden = false;
+  $('#d-company').textContent = settings.company;
+  $('#d-address').textContent = settings.address; $('#d-phone').textContent = settings.phone;
+  $('#f-status').value = inv.status || ''; $('#f-start').value = inv.start || ''; $('#f-end').value = inv.end || ''; $('#f-paid').value = inv.paid || ''; $('#f-customer').value = inv.customer || ''; $('#f-phone').value = inv.phone || ''; $('#f-email').value = inv.email || ''; $('#f-address').value = inv.address; $('#f-date').value = inv.date; $('#f-number').value = inv.number;
+  $('#f-intro').value = inv.intro; $('#f-overhead').value = inv.overheadPct; $('#f-profit').value = inv.profitPct;
+  $('#sections').innerHTML = '';
+  inv.sections.forEach(addSectionEl);
+  $('#saved').textContent = '';
+  refresh();
+  window.scrollTo(0, 0);
+}
+
+function addSectionEl(sec) {
+  const li = $('#t-section').content.firstElementChild.cloneNode(true);
+  li.querySelector('.sec-title').value = sec.title;
+  sec.items.forEach(it => addItemEl(li, it));
+  li.querySelector('.add-item').onclick = () => { addItemEl(li, { desc: '', amount: '' }).querySelector('.desc').focus(); save(); };
+  li.querySelector('.sec-head .rm').onclick = () => {
+    const hasContent = [...li.querySelectorAll('input,textarea')].some(x => x.value.trim());
+    if (!hasContent || confirm('Remove this whole area and all its lines?')) { li.remove(); save(); }
+  };
+  $('#sections').append(li);
+  return li;
+}
+
+function addItemEl(li, it) {
+  const el = $('#t-item').content.firstElementChild.cloneNode(true);
+  el.querySelector('.desc').value = it.desc;
+  el.querySelector('.amt').value = it.amount;
+  el.querySelector('.rm').onclick = () => { el.remove(); save(); };
+  li.querySelector('.items').append(el);
+  return el;
+}
+
+// DOM -> cur
+function readDoc() {
+  cur.status = $('#f-status').value; cur.start = $('#f-start').value; cur.end = $('#f-end').value; cur.paid = $('#f-paid').value; cur.customer = $('#f-customer').value; cur.phone = $('#f-phone').value; cur.email = $('#f-email').value; cur.address = $('#f-address').value; cur.date = $('#f-date').value; cur.number = $('#f-number').value;
+  cur.intro = $('#f-intro').value; cur.overheadPct = $('#f-overhead').value; cur.profitPct = $('#f-profit').value;
+  cur.sections = [...$('#sections').children].map(li => ({
+    title: li.querySelector('.sec-title').value,
+    items: [...li.querySelectorAll('.item')].map(el => ({ desc: el.querySelector('.desc').value, amount: el.querySelector('.amt').value })),
+  }));
+}
+
+function refresh() {
+  readDoc();
+  const t = totals(cur);
+  $('#t-cost').textContent = fmt(t.cost); $('#t-overhead').textContent = fmt(t.overhead); $('#t-sub').textContent = fmt(t.sub);
+  $('#t-profit').textContent = fmt(t.profit); $('#t-final').textContent = fmt(t.final);
+  $('#f-status').dataset.s = cur.status;
+  const due = balance(cur); $('#t-due').textContent = fmt(due); $('#t-due').className = due > 0 ? '' : 'ok';
+  $('#r-overhead').hidden = !t.overhead; $('.totals .sub').hidden = !t.overhead; $('#r-profit').hidden = !t.profit;
+}
+
+let saveTimer;
+function save() {   // autosave: called on every keystroke, debounced
+  refresh();
+  cur.updatedAt = Date.now();
+  clearTimeout(saveTimer);
+  $('#saved').textContent = 'Saving…';
+  saveTimer = setTimeout(() => { store('im.invoices', invoices); $('#saved').textContent = '✓ Saved'; }, 300);
+}
+addEventListener('pagehide', () => { clearTimeout(saveTimer); store('im.invoices', invoices); });   // closing the tab mid-word still saves
+
+// ---------- Wire up ----------
+$('#new').onclick = newInvoice;
+$('#admin').onclick = () => {   // ponytail: passcode is a "keep out" sign for the front page, not security; the code is readable in this file
+  const d = $('#settings');
+  if (!d.hidden) { d.hidden = true; return; }
+  if (prompt('Admin passcode') === String(settings.passcode)) { d.hidden = false; d.open = true; d.scrollIntoView({ behavior: 'smooth' }); }
+  else alert('Wrong passcode.');
+};
+$('#back').onclick = showHome;
+$('#search').oninput = renderList;
+$('#add-section').onclick = () => { addSectionEl({ title: '', items: [{ desc: '', amount: '' }] }).querySelector('.sec-title').focus(); save(); };
+$('#editor').addEventListener('input', save);
+$('#editor').addEventListener('focusout', e => {   // tidy "650" into "650.00" once he leaves the box
+  if (e.target.matches('.amt') && e.target.value.trim()) { e.target.value = fmt(toCents(e.target.value)).replace('$', ''); save(); }
+});
+$('#editor').addEventListener('keydown', e => {   // Enter in an amount box starts the next line
+  if (e.key === 'Enter' && e.target.matches('.item .amt')) { e.preventDefault(); e.target.closest('.section').querySelector('.add-item').click(); }
+});
+$('#delete').onclick = () => {   // full-page confirmation: he must type "delete"
+  const line = t => (t || '').split('\n').find(l => l.trim())?.trim();
+  $('#c-who').textContent = line(cur.customer) || '(no customer)'; $('#c-where').textContent = line(cur.address) || '(no address)';
+  $('#c-type').value = ''; $('#c-delete').disabled = true;
+  $('#editor').hidden = true; $('#confirm').hidden = false;
+  $('#c-type').focus();
+};
+$('#c-type').oninput = e => $('#c-delete').disabled = e.target.value.trim().toLowerCase() !== 'delete';
+$('#c-type').onkeydown = e => { if (e.key === 'Enter' && !$('#c-delete').disabled) $('#c-delete').click(); };
+$('#c-cancel').onclick = () => { $('#confirm').hidden = true; $('#editor').hidden = false; };
+$('#c-delete').onclick = () => { invoices = invoices.filter(i => i !== cur); store('im.invoices', invoices); cur = null; $('#confirm').hidden = true; showHome(); };
+$('#print').onclick = () => {
+  document.title = pdfName();   // becomes the PDF file name
+  window.print();
+};
+const api = window.api;   // set by preload.js inside the desktop app; missing when the file is opened in a plain browser
+const pdfName = () => `Invoice ${cur.number} - ${((cur.customer || cur.address).split('\n')[0] || '').trim()}`;
+$('#pdf').onclick = async () => {
+  if (!api) { $('#saved').textContent = 'In the print window, choose “Save as PDF” as the printer.'; return $('#print').click(); }
+  $('#saved').textContent = `PDF saved: ${await api.savePdf(pdfName())}`;
+};
+$('#email').onclick = async () => {
+  const who = (cur.customer.split('\n')[0] || '').trim();
+  const to = cur.email.trim();
+  const subject = `Invoice ${cur.number} from ${settings.company}`;
+  const body = `Hello${who ? ' ' + who : ''},\n\nAttached is invoice #${cur.number} for the work at ${(cur.address.split('\n')[0] || 'your address').trim()}. The total is ${fmt(totals(cur).final)}.\n\nThank you,\n${settings.company}\n${settings.phone}`;
+  if (!api) {   // plain browser: mailto cannot carry an attachment
+    location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return $('#saved').textContent = 'Your mail program is opening. Attach the PDF you saved.';
+  }
+  const pdf = await api.savePdf(pdfName());
+  const ok = await api.email({ to, subject, body, pdf });
+  $('#saved').textContent = ok ? 'Thunderbird is opening with the PDF attached.' : `Thunderbird not found. PDF saved: ${pdf}`;
+};
+addEventListener('afterprint', () => document.title = 'Crown Design Invoices');
+
+for (const [id, key] of [['s-company', 'company'], ['s-passcode', 'passcode'], ['s-address', 'address'], ['s-phone', 'phone'], ['s-intro', 'intro'], ['s-overhead', 'overheadPct'], ['s-profit', 'profitPct']]) {
+  $('#' + id).value = settings[key];
+  $('#' + id).oninput = e => { settings[key] = e.target.value; store('im.settings', settings); };
+}
+function download(name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ settings, invoices }, null, 2)], { type: 'application/json' }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+$('#backup').onclick = () => download(`invoices-backup-${today()}.json`);
+$('#folder').onclick = () => api ? api.openBackups() : alert('Daily backups only run in the desktop app.');
+
+async function dailyBackup() {   // desktop app only: once a day write invoices-auto-<date>.json into the app's own data folder
+  const last = localStorage.getItem('im.lastBackup');
+  $('#auto').textContent = last ? `Last automatic backup: ${fmtDate(last)}` : 'No automatic backup yet.';
+  if (!api || !invoices.length || last === today()) return;
+  await api.backup(`invoices-auto-${today()}.json`, JSON.stringify({ settings, invoices }, null, 2));
+  localStorage.setItem('im.lastBackup', today());
+  $('#auto').textContent = `Last automatic backup: ${fmtDate(today())}`;
+}
+$('#restore').onclick = () => $('#restore-file').click();
+$('#restore-file').onchange = async e => {
+  try {
+    const data = JSON.parse(await e.target.files[0].text());
+    if (!Array.isArray(data.invoices)) throw new Error('bad file');
+    const byId = new Map(invoices.map(i => [i.id, i]));
+    for (const inv of data.invoices) byId.set(inv.id, inv);   // backup wins on the same id; others are kept
+    invoices = [...byId.values()]; store('im.invoices', invoices);
+    if (data.settings) { settings = { ...settings, ...data.settings }; store('im.settings', settings); }
+    alert(`Restored. You now have ${invoices.length} invoices.`);
+    location.reload();
+  } catch { alert('That file is not a valid backup.'); }
+  e.target.value = '';
+};
+
+showHome();
+</script>
+</body>
+</html>

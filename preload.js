@@ -1,0 +1,8 @@
+// The only bridge between the page and the operating system. Everything the page can ask for is listed here.
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('api', {
+  savePdf: name => ipcRenderer.invoke('savePdf', name),                 // -> full path of the PDF in Documents\Invoices
+  email: opts => ipcRenderer.invoke('email', opts),                      // { to, subject, body, pdf } -> true if Thunderbird opened
+  backup: (name, json) => ipcRenderer.invoke('backup', name, json),      // -> full path of the backup file
+  openBackups: () => ipcRenderer.invoke('openBackups'),
+});

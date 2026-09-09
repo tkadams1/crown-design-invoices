@@ -1,0 +1,21 @@
+name: Release
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+concurrency: release   # one build at a time so version numbers stay in order
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm test
+      # major.minor from package.json, patch = run number, so every push to main is a new, higher version the updater will pick up
+      - run: npm version "$(node -e "const v=require('./package.json').version.split('.');console.log(v[0]+'.'+v[1]+'.'+process.env.GITHUB_RUN_NUMBER)")" --no-git-tag-version
+      - run: npx electron-builder --win nsis --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

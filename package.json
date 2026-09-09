@@ -1,0 +1,51 @@
+{
+  "name": "crown-design-invoices",
+  "productName": "Crown Design Invoices",
+  "version": "1.0.0",
+  "description": "Invoices for Crown Design INC.",
+  "main": "main.js",
+  "author": "Crown Design INC.",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test.mjs",
+    "dist": "electron-builder --win nsis --x64 --publish never"
+  },
+  "build": {
+    "appId": "com.crowndesign.invoices",
+    "files": [
+      "main.js",
+      "preload.js",
+      "Invoice Maker.html",
+      "invoice.ico"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "invoice.ico",
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "shortcutName": "Crown Design Invoices",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "tkadams1",
+      "repo": "crown-design-invoices",
+      "releaseType": "release"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}
