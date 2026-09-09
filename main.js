@@ -5,6 +5,8 @@ const { spawn, execFileSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const { autoUpdater } = require('electron-updater');
 
+if (process.argv.includes('--smoke')) app.setPath('userData', path.join(require('node:os').tmpdir(), 'crown-invoices-smoke'));   // never touch real data from the test
+
 let win;
 app.whenReady().then(() => {
   win = new BrowserWindow({
@@ -12,13 +14,40 @@ app.whenReady().then(() => {
     icon: path.join(__dirname, 'invoice.ico'), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
-  win.loadFile('Invoice Maker.html');
+  win.loadFile(path.join(__dirname, 'Invoice Maker.html'));
+  win.on('close', e => {   // flush the page's current data before the window goes away (normal close, quit, or update install)
+    if (win.flushed) return;
+    e.preventDefault();
+    const done = () => { win.flushed = true; win.close(); };
+    Promise.race([win.webContents.executeJavaScript('window.snapshot && window.snapshot()'), new Promise(r => setTimeout(r, 1500))])
+      .then(json => { if (typeof json === 'string') writeData(json); }).catch(() => {}).finally(done);
+  });
   if (process.argv.includes('--smoke')) {
     win.webContents.on('console-message', ev => { if (ev.level === 'error') { console.error(`page error line ${ev.lineNumber}: ${ev.message}`); process.exitCode = 1; } });
     win.webContents.once('did-finish-load', smoke);
   }
 });
 app.on('window-all-closed', () => app.quit());
+
+// ---------- Data file ----------
+// invoices.json in userData is the record. Every write goes to a temp file then renames (never a half-written file),
+// keeps the previous copy as invoices.json.bak, and mirrors to a second folder outside userData.
+const dataFile = () => path.join(app.getPath('userData'), 'invoices.json');
+const mirrorFile = () => path.join(process.env.LOCALAPPDATA || app.getPath('appData'), 'Crown Design Invoices Data', 'invoices.json');
+const readJson = f => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } };
+function writeData(json) {
+  JSON.parse(json);   // refuse to write anything that is not valid JSON
+  const f = dataFile();
+  fs.writeFileSync(f + '.tmp', json);
+  if (fs.existsSync(f)) fs.copyFileSync(f, f + '.bak');
+  fs.renameSync(f + '.tmp', f);
+  try { dir(path.dirname(mirrorFile())); fs.writeFileSync(mirrorFile(), json); } catch {}
+}
+function readData() {   // the record, else the previous copy, else the mirror
+  return readJson(dataFile()) ?? readJson(dataFile() + '.bak') ?? readJson(mirrorFile());
+}
+ipcMain.handle('loadData', readData);
+ipcMain.handle('saveData', (e, json) => writeData(json));
 
 const dir = p => { fs.mkdirSync(p, { recursive: true }); return p; };
 const pdfDir = () => dir(path.join(app.getPath('documents'), 'Invoices'));

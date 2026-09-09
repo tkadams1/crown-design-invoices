@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('api', {
   email: opts => ipcRenderer.invoke('email', opts),                      // { to, subject, body, pdf } -> true if Thunderbird opened
   backup: (name, json) => ipcRenderer.invoke('backup', name, json),      // -> full path of the backup file
   openBackups: () => ipcRenderer.invoke('openBackups'),
+  loadData: () => ipcRenderer.invoke('loadData'),                        // -> { settings, invoices } or null
+  saveData: json => ipcRenderer.invoke('saveData', json),                // whole data set as JSON text
   version: () => ipcRenderer.invoke('version'),
   checkForUpdates: () => ipcRenderer.invoke('checkForUpdates'),
   installUpdate: () => ipcRenderer.invoke('installUpdate'),

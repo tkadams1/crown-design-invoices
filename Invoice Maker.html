@@ -177,7 +177,7 @@
   <form method="dialog">
     <label>Admin passcode <input id="pass-in" type="password" inputmode="numeric" autocomplete="off" autofocus></label>
     <p id="pass-msg" style="color:#b91c1c;margin:-8px 0 16px;min-height:1.2em"></p>
-    <div class="row"><button value="cancel" class="secondary" formnovalidate>Cancel</button><button value="ok">Unlock</button></div>
+    <div class="row"><button type="button" id="pass-cancel" class="secondary">Cancel</button><button value="ok">Unlock</button></div>
   </form>
 </dialog>
 
@@ -284,16 +284,24 @@ function totals(inv) {
 }
 </script>
 
-<script>
+<script type="module">
 const $ = s => document.querySelector(s);
+const desktop = window.api;   // set by preload.js inside the desktop app; missing when the file is opened in a plain browser
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
-const store = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const snapshot = () => JSON.stringify({ settings, invoices, savedAt: new Date().toISOString() }, null, 2);
+window.snapshot = snapshot;   // main.js reads this on window close so the last keystroke is on disk before the app exits
+const store = (k, v) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch {}
+  if (desktop) desktop.saveData(snapshot());   // written synchronously to invoices.json + a mirror copy; nothing waits on the browser's lazy storage
+};
 const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
 const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('en-US') : '';
 
 const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
-let settings = { ...DEFAULTS, ...load('im.settings', {}) };
-let invoices = load('im.invoices', []);
+const file = desktop ? await desktop.loadData() : null;   // { settings, invoices } from invoices.json, or null on first run
+let settings = { ...DEFAULTS, ...(file?.settings ?? load('im.settings', {})) };
+let invoices = file?.invoices ?? load('im.invoices', []);
+if (desktop && !file) desktop.saveData(snapshot());   // first run with the file store: carry over whatever localStorage still had
 let cur = null;   // invoice open in the editor
 
 // ---------- Home ----------
@@ -428,8 +436,8 @@ $('#admin').onclick = () => {   // ponytail: passcode is a "keep out" sign for t
   if (!d.hidden) { d.hidden = true; return; }
   $('#pass-in').value = ''; $('#pass-msg').textContent = ''; $('#pass').showModal();
 };
+$('#pass-cancel').onclick = () => $('#pass').close('cancel');
 $('#pass form').onsubmit = e => {
-  if (e.submitter?.value !== 'ok') return;   // Cancel just closes
   const d = $('#settings');
   if ($('#pass-in').value === String(settings.passcode)) { d.hidden = false; d.open = true; d.scrollIntoView({ behavior: 'smooth' }); }
   else { e.preventDefault(); $('#pass-msg').textContent = 'Wrong passcode, try again.'; $('#pass-in').select(); }
@@ -459,7 +467,6 @@ $('#print').onclick = () => {
   document.title = pdfName();   // becomes the PDF file name
   window.print();
 };
-const desktop = window.api;   // set by preload.js inside the desktop app; missing when the file is opened in a plain browser
 const pdfName = () => `Invoice ${cur.number} - ${((cur.customer || cur.address).split('\n')[0] || '').trim()}`;
 $('#pdf').onclick = async () => {
   if (!desktop) { $('#saved').textContent = 'In the print window, choose “Save as PDF” as the printer.'; return $('#print').click(); }

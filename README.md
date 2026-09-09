@@ -28,7 +28,7 @@ To build locally instead: `npm install` then `npm run dist` (installer lands in 
 
 ## Where the records live
 
-Everything is stored in the app's own data folder, `%APPDATA%\Crown Design Invoices`. Uninstalling or reinstalling the app does not remove it.
+Everything is in one readable file, `%APPDATA%\Crown Design Invoices\invoices.json`. The app rewrites it on every change (temp file then rename, so it is never half-written), keeps the previous copy as `invoices.json.bak`, and mirrors it to `%LOCALAPPDATA%\Crown Design Invoices Data\invoices.json`. On start it reads the first of those three that is intact. The installer never touches any of them, so updates and reinstalls keep every invoice.
 
 - **Daily backup.** Once a day, the first time he opens or leaves an invoice, the app writes `invoices-auto-<date>.json` into `%APPDATA%\Crown Design Invoices\backups`. That folder is in the hidden AppData tree, so a stray click cannot delete a backup. The admin panel shows the date of the last one and has **Open daily backups folder**.
 - **Manual backup.** Click **Save backup file** every so often and keep the file somewhere off the computer (OneDrive, a USB stick).
