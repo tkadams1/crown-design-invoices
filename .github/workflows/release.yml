@@ -15,7 +15,15 @@ jobs:
       - run: npm ci
       - run: npm test
       # major.minor from package.json, patch = run number, so every push to main is a new, higher version the updater will pick up
-      - run: npm version "$(node -e "const v=require('./package.json').version.split('.');console.log(v[0]+'.'+v[1]+'.'+process.env.GITHUB_RUN_NUMBER)")" --no-git-tag-version
+      - name: Version
+        run: |
+          $v = node -e "const v=require('./package.json').version.split('.');console.log(v[0]+'.'+v[1]+'.'+process.env.GITHUB_RUN_NUMBER)"
+          npm version $v --no-git-tag-version
+          "VERSION=$v" >> $env:GITHUB_ENV
+      - name: Tag        # GitHub only accepts a published release for a tag that already exists
+        run: |
+          git tag "v$env:VERSION"
+          git push origin "v$env:VERSION"
       - run: npx electron-builder --win nsis --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
