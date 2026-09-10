@@ -62,6 +62,8 @@
   .track label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
   .track output { font-size: 22px; font-weight: bold; color: #b91c1c; padding: 6px 0; }
   .track output.ok { color: #15803d; }
+  .track-head.sub { margin-top: 8px; padding-top: 14px; border-top: 1px solid #cbd5e1; }
+  .track :user-invalid { border-color: #b91c1c; outline-color: #b91c1c; }
   .track label { min-width: 0; }
   .track select, .track input { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px; text-transform: none; letter-spacing: 0; color: #111; padding: 8px 10px; border: 1px solid #bbb; border-radius: 6px; background: #fff; }
   #list .total { font-weight: bold; font-size: 22px; align-self: center; }
@@ -90,10 +92,20 @@
   details input, details textarea { width: 100%; box-sizing: border-box; }
   details .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
   details .row label { flex: 1; }
-  #saved { color: #15803d; font-size: 17px; }
+  /* Snackbar: every status message pops up at the bottom of the screen and fades away */
+  #saved { position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: 2000; max-width: calc(100vw - 200px); padding: 14px 24px; border-radius: 10px; background: #1e293b; color: #fff; font-size: 18px; box-shadow: 0 6px 20px rgba(0,0,0,.25); opacity: 0; transition: opacity .35s; pointer-events: none; }
+  #saved.show { opacity: 1; }
+  /* Save indicator: a circled check pinned to the right edge. Black while a save is pending, green once it is on disk. */
+  #savedot { position: fixed; right: 24px; bottom: 32px; z-index: 2000; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #15803d; color: #fff; font-size: 26px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,.2); transition: background .3s; cursor: pointer; }
+  #savedot.saving { background: #111; }
+  /* Area picker: a scrollable list under the Area box (Electron's built-in datalist popup cannot scroll) */
+  .sec-head .fld { position: relative; }
+  #pick { position: absolute; left: 0; right: 0; top: 100%; z-index: 50; margin: 4px 0 0; padding: 6px 0; list-style: none; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid #bbb; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  #pick li { padding: 10px 14px; font-size: 19px; cursor: pointer; }
+  #pick li:hover, #pick li.on { background: #dbeafe; color: #1e40af; }
 
   /* The invoice document itself */
-  #doc { background: #fff; padding: 48px; border: 1px solid #ddd; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  #doc, #paper { background: #fff; padding: 48px; border: 1px solid #ddd; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
   .head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 16px; padding-bottom: 16px; border-bottom: 3px solid #111; }
   .company { font-size: 26px; font-weight: bold; }
   .company .fine { font-size: 16px; font-weight: normal; color: #444; white-space: pre-line; margin-top: 4px; }
@@ -129,6 +141,54 @@
   .totals input { width: 60px; text-align: right; padding: 2px 4px; }
   .totals .sub td { border-top: 1px solid #111; }
   .totals .final td { font-weight: bold; font-size: 24px; border-top: 3px solid #111; }
+
+  /* Editor has two looks: .edit is a plain form, .preview is the paper exactly as it prints. Screen only: Print and PDF always get the paper. */
+  /* Screen only (Print and PDF ignore all of this and get the paper): #doc is the plain form he types in;
+     #paper is a read-only copy laid out exactly as it prints, shown beside the form when Preview is on. */
+  @media screen {
+    #doc { padding: 24px 28px; box-shadow: none; }
+    #doc .company, #doc .head .logo, #doc .inv .word, #doc .lbl, #doc .item .fld > span { display: none; }
+    #doc .head { display: block; border: 0; padding: 0; }
+    #doc .inv { display: flex; gap: 16px; text-align: left; }
+    #doc .inv label { flex: 0 0 auto; flex-direction: column; align-items: stretch; gap: 4px; margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
+    #doc .inv input { width: auto; }
+    #doc .fld { flex-direction: column; align-items: stretch; gap: 4px; }
+    #doc .fld > span { order: -1; visibility: visible; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; white-space: normal; }
+    #doc .fld > :user-invalid + span { color: #b91c1c; }
+    #doc .meta { grid-template-columns: 1fr; gap: 16px; }
+    #doc .meta > div:first-child { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    #doc .meta .fld:has(#f-customer) { grid-column: 1 / -1; }
+    #doc .meta input { margin-top: 0; }
+    /* every box the same height; textareas still grow when a second line is typed */
+    #doc :is(input, textarea) { box-sizing: border-box; min-height: 48px; padding: 8px 12px; font-size: 20px; line-height: 30px; }
+    #doc .rm, #doc .add-item { min-height: 48px; }
+    #doc .totals input { min-height: 0; padding: 2px 4px; font-size: inherit; line-height: normal; }   /* the small "10 % overhead" boxes stay inline-sized */
+    #doc #sections { list-style: none; padding: 0; margin: 24px 0 12px; }
+    #doc .section { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; }
+    #doc .sec-head .rm { align-self: end; }
+    #doc .items-head { display: grid; grid-template-columns: 1fr 150px 40px; gap: 8px; margin: 12px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #64748b; }
+    #doc .items-head span:nth-child(2) { text-align: right; }
+    #doc .item { grid-template-columns: 1fr 150px 40px; }
+    #doc .totals { margin-top: 32px; }
+    #doc .totals .final td { border-bottom: 1px solid #111; }
+
+    #editor.preview main { max-width: none; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+    #editor.preview .track { grid-column: 1 / -1; }
+    #paper { position: sticky; top: 130px; pointer-events: none; user-select: none; }   /* read-only: a live copy, not the real fields */
+    #paper .no-print, #paper .items-head, #paper .fld > span { display: none; }
+    #paper ol { padding-left: 32px; margin: 24px 0 8px; }
+    #paper :is(input, textarea) { border: 0; padding: 0; background: none; color: #000; }
+    #paper ::placeholder { color: transparent; }
+    #paper input[type=date]::-webkit-calendar-picker-indicator { display: none; }
+    #paper .meta input { margin: 0; } #paper .meta textarea { min-height: 0; }
+    #paper .meta input:placeholder-shown { display: none; }
+    #paper .sec-head { border-bottom: 1px solid #999; padding-bottom: 3px; }
+    #paper .sec-title { text-transform: uppercase; letter-spacing: .04em; }
+    #paper .item { grid-template-columns: 1fr 120px; margin: 0; padding: 4px 0; border-bottom: 1px dotted #ccc; }
+    #paper .item:last-child { border-bottom: 0; }
+    #paper .totals input { width: 3ch; }
+    #paper .totals .final td { border-bottom: 1px solid #111; }
+  }
 
   @page { margin: 0; }   /* no browser header/footer (url, page #, date) */
   @media print {
@@ -182,6 +242,7 @@
       <label>Mail program, only if Email cannot find Thunderbird (full path to thunderbird.exe) <input id="s-mailer" placeholder="leave blank to find it automatically"></label>
       <label>Printer for the Print button <select id="s-printer"><option value="popup">Popup: confirm the customer and pick the printer (default)</option><option value="direct">Just print: straight to his real printer, never “Print to PDF”</option><option value="ask">Windows print dialog every time</option></select></label>
       <label>Agreement sentence (top of every invoice) <input id="s-intro"></label>
+      <label>Area names offered in the Area box, one per line (new names he types are added here automatically) <textarea id="s-areas" rows="8"></textarea></label>
       <div class="row">
         <label>Overhead % <input id="s-overhead" type="number" min="0" step="0.5"></label>
         <label>Profit % <input id="s-profit" type="number" min="0" step="0.5"></label>
@@ -211,13 +272,16 @@
   </form>
 </dialog>
 
+<ul id="pick" class="no-print" hidden></ul>
+
 <dialog id="mail">
   <form method="dialog">
     <label><span style="display:flex;justify-content:space-between;align-items:center;gap:12px">Who would you like to email this invoice to?<button type="button" id="mail-customer" class="secondary" style="font-size:13px;padding:4px 10px;white-space:nowrap">Use the customer’s email</button></span>
-      <input id="mail-to" type="email" placeholder="name@example.com" autocomplete="off" required autofocus>
+      <input id="mail-to" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]{2,}" placeholder="name@example.com" autocomplete="off" required autofocus>
     </label>
-    <label>Cc (optional)<div id="mail-ccs"><input class="mail-cc" type="email" placeholder="someone@example.com" autocomplete="off"></div></label>
-    <button type="button" id="mail-add" class="secondary" style="width:100%">＋ Cc another person</button>
+    <label>Cc (optional)<div id="mail-ccs"><input class="mail-cc" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]{2,}" placeholder="someone@example.com" autocomplete="off"></div></label>
+    <div class="row"><button type="button" id="mail-agent" class="secondary">Cc the real estate agent</button><button type="button" id="mail-insurer" class="secondary">Cc the insurance agent</button></div>
+    <button type="button" id="mail-add" class="secondary" style="width:100%;margin-top:12px">＋ Cc another person</button>
     <div class="row" style="margin-top:32px"><button type="button" id="mail-cancel" class="secondary">Cancel</button><button value="ok">📧 Email</button></div>
   </form>
 </dialog>
@@ -251,9 +315,10 @@
     <button id="pdf">💾 Save as PDF</button>
     <button id="email">📧 Email</button>
     <span id="saved"></span>
-    <span class="zoomer"><button id="zout" class="secondary" title="Zoom out">🔍−</button><span id="zoom">100%</span><button id="zin" class="secondary" title="Zoom in">🔍+</button></span>
+    <span class="zoomer"><button id="preview" class="secondary" style="margin-right:18px">👁 Preview invoice</button><button id="zout" class="secondary" title="Zoom out">🔍−</button><span id="zoom">100%</span><button id="zin" class="secondary" title="Zoom in">🔍+</button></span>
     <button id="delete" class="danger">Delete</button>
   </div>
+  <span id="savedot" class="no-print" title="All work to this invoice is currently saved">✓</span>
   <main>
     <div class="track no-print">
       <div class="track-head">Job tracking <small>private, never printed</small></div>
@@ -269,6 +334,9 @@
       <label>Completion date <input id="f-end" type="date"></label>
       <label>Paid so far <input id="f-paid" class="amt" inputmode="decimal" placeholder="0.00"></label>
       <label>Balance due <output id="t-due"></output></label>
+      <div class="track-head sub">Additional parties <small>optional, can be Cc’d on the email</small></div>
+      <label style="grid-column: span 2">Real estate agent email <input id="f-agent" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]{2,}" placeholder="agent@example.com" autocomplete="off"></label>
+      <label style="grid-column: span 2">Insurance agent email <input id="f-insurer" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]{2,}" placeholder="adjuster@example.com" autocomplete="off"></label>
     </div>
     <article id="doc">
       <header class="head">
@@ -285,9 +353,9 @@
           <div class="lbl">Customer</div>
           <label class="fld"><textarea id="f-customer" rows="2" placeholder="Customer name" aria-label="Customer"></textarea><span>Customer name</span></label>
           <label class="fld"><input id="f-phone" type="tel" inputmode="numeric" pattern="\d{3}-\d{3}-\d{4}" placeholder="Customer phone" aria-label="Customer phone"><span>Customer phone</span></label>
-          <label class="fld"><input id="f-email" type="email" placeholder="Customer email" aria-label="Customer email"><span>Customer email</span></label>
+          <label class="fld"><input id="f-email" type="email" pattern="[^@\s]+@[^@\s]+\.[^@\s]{2,}" placeholder="Customer email" aria-label="Customer email"><span>Customer email</span></label>
         </div>
-        <div><div class="lbl">Job address</div><label class="fld"><textarea id="f-address" rows="3" placeholder="Street, city, state, zip" aria-label="Job address"></textarea><span>Street, city, state, zip</span></label></div>
+        <div><div class="lbl">Job address</div><label class="fld"><textarea id="f-address" rows="3" placeholder="Street, city, state, zip" aria-label="Job address"></textarea><span>Job address</span></label></div>
       </div>
       <label class="fld"><input id="f-intro" placeholder="Agreement sentence" aria-label="Agreement sentence"><span>Agreement sentence</span></label>
       <ol id="sections"></ol>
@@ -300,15 +368,17 @@
         <tr class="final"><td>Final job cost</td><td id="t-final"></td></tr>
       </table>
     </article>
+    <article id="paper" class="no-print" hidden></article>
   </main>
 </section>
 
 <template id="t-section">
   <li class="section">
     <div class="sec-head">
-      <label class="fld"><input class="sec-title" placeholder="Area (e.g. master bath)" aria-label="Area name"><span>Area (e.g. master bath)</span></label>
+      <label class="fld"><input class="sec-title" autocomplete="off" placeholder="Area (e.g. master bath)" aria-label="Area name"><span>Area</span></label>
       <button class="rm no-print" tabindex="-1" title="Remove this area">✕</button>
     </div>
+    <div class="items-head no-print"><span>Description of work</span><span>Amount</span></div>
     <div class="items"></div>
     <button class="add-item rm no-print" tabindex="-1">+ Add line</button>
   </li>
@@ -352,7 +422,8 @@ const store = (k, v) => {
 const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
 const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('en-US') : '';
 
-const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', printer: 'popup', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
+const SEED_AREAS = ['Attic', 'Basement', 'Bedroom', 'Closet', 'Deck', 'Den', 'Dining room', 'Doors', 'Drywall', 'Electrical', 'Entry', 'Exterior', 'Family room', 'Fence', 'Final cleanup', 'Flooring', 'Garage', 'Guest bath', 'Half bath', 'Hall bath', 'Hallway', 'Kitchen', 'Landscaping', 'Laundry room', 'Living room', 'Master bath', 'Master bedroom', 'Office', 'Painting', 'Patio', 'Plumbing', 'Porch', 'Roof', 'Stairs', 'Trim', 'Windows'];
+const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', printer: 'popup', areas: [], areasSeeded: false, intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
 const file = desktop ? await desktop.loadData() : null;   // { settings, invoices } from invoices.json, or null on first run
 let settings = { ...DEFAULTS, ...(file?.settings ?? load('im.settings', {})) };
 let invoices = file?.invoices ?? load('im.invoices', []);
@@ -482,11 +553,11 @@ function newInvoice() {
 function openInvoice(inv) {
   dailyBackup();
   cur = inv;
-  $('#home').hidden = true; $('#editor').hidden = false;
+  $('#home').hidden = true; $('#editor').hidden = false; setPreview(false);
   $('#delete').disabled = true; setTimeout(() => $('#delete').disabled = false, 2000);   // double-clicking New can't land on Delete
   $('#d-company').textContent = settings.company;
   $('#d-address').textContent = settings.address; $('#d-phone').textContent = settings.phone;
-  $('#f-status').value = inv.status || ''; $('#f-start').value = inv.start || ''; $('#f-end').value = inv.end || ''; $('#f-paid').value = inv.paid || ''; $('#f-customer').value = inv.customer || ''; $('#f-phone').value = inv.phone || ''; $('#f-email').value = inv.email || ''; $('#f-address').value = inv.address; $('#f-date').value = inv.date; $('#f-number').value = inv.number;
+  $('#f-status').value = inv.status || ''; $('#f-start').value = inv.start || ''; $('#f-end').value = inv.end || ''; $('#f-paid').value = inv.paid || ''; $('#f-customer').value = inv.customer || ''; $('#f-phone').value = inv.phone || ''; $('#f-agent').value = inv.agent || ''; $('#f-insurer').value = inv.insurer || ''; $('#f-email').value = inv.email || ''; $('#f-address').value = inv.address; $('#f-date').value = inv.date; $('#f-number').value = inv.number;
   $('#f-intro').value = inv.intro; $('#f-overhead').value = inv.overheadPct; $('#f-profit').value = inv.profitPct;
   $('#sections').innerHTML = '';
   inv.sections.forEach(addSectionEl);
@@ -519,7 +590,7 @@ function addItemEl(li, it) {
 
 // DOM -> cur
 function readDoc() {
-  cur.status = $('#f-status').value; cur.start = $('#f-start').value; cur.end = $('#f-end').value; cur.paid = $('#f-paid').value; cur.customer = $('#f-customer').value; cur.phone = $('#f-phone').value; cur.email = $('#f-email').value; cur.address = $('#f-address').value; cur.date = $('#f-date').value; cur.number = $('#f-number').value;
+  cur.status = $('#f-status').value; cur.start = $('#f-start').value; cur.end = $('#f-end').value; cur.paid = $('#f-paid').value; cur.customer = $('#f-customer').value; cur.phone = $('#f-phone').value; cur.agent = $('#f-agent').value; cur.insurer = $('#f-insurer').value; cur.email = $('#f-email').value; cur.address = $('#f-address').value; cur.date = $('#f-date').value; cur.number = $('#f-number').value;
   cur.intro = $('#f-intro').value; cur.overheadPct = $('#f-overhead').value; cur.profitPct = $('#f-profit').value;
   cur.sections = [...$('#sections').children].map(li => ({
     title: li.querySelector('.sec-title').value,
@@ -535,6 +606,7 @@ function refresh() {
   $('#f-status').dataset.s = cur.status;
   const due = balance(cur); $('#t-due').textContent = fmt(due); $('#t-due').className = due > 0 ? '' : 'ok';
   $('#r-overhead').hidden = !t.overhead; $('.totals .sub').hidden = !t.overhead; $('#r-profit').hidden = !t.profit;
+  renderPaper();
 }
 
 let saveTimer;
@@ -562,8 +634,67 @@ $('#pass form').onsubmit = e => {
   else { e.preventDefault(); $('#pass-msg').textContent = 'Wrong passcode, try again.'; $('#pass-in').select(); }
 };
 $('#back').onclick = showHome;
+{ let t; new MutationObserver(() => {   // messages written to #saved: save status drives the check circle, everything else pops the snackbar and fades
+    const msg = $('#saved').textContent;
+    if (msg === 'Saving…' || msg === '✓ Saved') {
+      $('#savedot').classList.toggle('saving', msg === 'Saving…');
+      $('#savedot').title = msg === 'Saving…' ? 'Saving…' : 'All work to this invoice is currently saved';
+      return;
+    }
+    $('#saved').classList.toggle('show', !!msg);
+    clearTimeout(t); if (msg) t = setTimeout(() => $('#saved').classList.remove('show'), 5000);
+  }).observe($('#saved'), { childList: true, characterData: true, subtree: true }); }
+function setPreview(on) {   // side-by-side: the form on the left, a read-only copy of the printed page on the right
+  $('#editor').classList.toggle('preview', on);
+  $('#paper').hidden = !on;
+  $('#preview').textContent = on ? '👁 Hide preview' : '👁 Preview invoice';
+  renderPaper();
+}
+function renderPaper() {   // copy the form (values come along with cloneNode) and scale it to fit its column
+  if ($('#paper').hidden) return;
+  const copy = $('#doc').cloneNode(true);
+  copy.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+  $('#paper').replaceChildren(...copy.children);
+  const col = ($('#editor main').clientWidth - 48 - 24) / 2;   // main's padding and the grid gap
+  $('#paper').style.zoom = Math.min(1, col / 900);
+}
+$('#preview').onclick = () => setPreview($('#paper').hidden);
+$('#savedot').onclick = () => { const d = $('#savedot'); $('#saved').textContent = ''; $('#saved').textContent = d.title; };   // click: the tooltip text as a snackbar (blank first so a repeat click re-triggers)
+addEventListener('resize', renderPaper);
 $('#search').oninput = renderList;
 $('#add-section').onclick = () => { addSectionEl({ title: '', items: [{ desc: '', amount: '' }] }).querySelector('.sec-title').focus(); save(); };
+document.addEventListener('input', e => {   // amounts and percents: digits and one decimal point only, whatever he types or pastes
+  if (!e.target.matches('.amt, #f-overhead, #f-profit')) return;
+  const clean = e.target.value.replace(/[^\d.]/g, '').replace(/^([^.]*\.[^.]*)\..*$/, '$1');   // second dot and beyond dropped
+  if (clean !== e.target.value) e.target.value = clean;
+}, true);   // capture: runs before the field's own save() handler reads the value
+// Area names: the list in the admin panel, seeded once with the parts of a house; he can delete any of them there. Every name he types joins it.
+if (!settings.areasSeeded) { settings.areas = [...SEED_AREAS, ...(settings.areas || [])]; settings.areasSeeded = true; store('im.settings', settings); }   // once: the built-ins join whatever was already there
+const areaNames = () => [...new Set(settings.areas)].sort((a, b) => a.localeCompare(b));
+function showPick(input) {   // list every name containing what he has typed, under this Area box
+  const q = input.value.trim().toLowerCase(), pick = $('#pick');
+  const names = areaNames().filter(n => n.toLowerCase().includes(q));
+  pick.replaceChildren(...names.map(n => Object.assign(document.createElement('li'), { textContent: n })));
+  input.parentElement.append(pick);
+  pick.hidden = !names.length;
+}
+const choosePick = (input, li) => { input.value = li.textContent; input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); $('#pick').hidden = true; };
+document.addEventListener('focusin', e => { if (e.target.matches('.sec-title')) showPick(e.target); });
+document.addEventListener('input', e => { if (e.target.matches('.sec-title')) showPick(e.target); });
+document.addEventListener('focusout', e => { if (e.target.matches('.sec-title')) { $('#pick').hidden = true; document.body.append($('#pick')); } });   // back to body, so deleting the area never deletes the list
+$('#pick').onmousedown = e => { e.preventDefault(); const li = e.target.closest('li'); if (li) choosePick($('#pick').parentElement.querySelector('.sec-title'), li); };   // mousedown, so the box keeps focus until the pick is applied
+document.addEventListener('keydown', e => {   // arrows move the highlight, Enter picks, Escape closes
+  if (!e.target.matches('.sec-title') || $('#pick').hidden) return;
+  const items = [...$('#pick').children], i = items.findIndex(li => li.classList.contains('on'));
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const n = items[Math.max(0, Math.min(items.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]; items.forEach(li => li.classList.remove('on')); n.classList.add('on'); n.scrollIntoView({ block: 'nearest' }); }
+  else if (e.key === 'Enter' && i >= 0) { e.preventDefault(); choosePick(e.target, items[i]); }
+  else if (e.key === 'Escape') $('#pick').hidden = true;
+});
+document.addEventListener('change', e => {   // when he leaves an Area box, a name not seen before joins the list for next time
+  if (!e.target.matches('.sec-title')) return;
+  const v = e.target.value.trim();
+  if (v && !areaNames().some(a => a.toLowerCase() === v.toLowerCase())) { settings.areas = [...areaNames(), v]; store('im.settings', settings); $('#s-areas').value = settings.areas.join('\n'); }
+});
 $('#f-phone').oninput = e => {   // digits only, dashes added as he types: 5551234567 -> 555-123-4567
   const d = e.target.value.replace(/\D/g, '').slice(0, 10);
   e.target.value = d.replace(/^(\d{3})(\d{1,3})?(\d{1,4})?$/, (_, a, b, c) => a + (b ? '-' + b : '') + (c ? '-' + c : ''));
@@ -621,12 +752,22 @@ $('#email').onclick = () => {
   if (missingInfo()) return;
   $('#mail-to').value = cur.email.trim(); $('#mail-customer').disabled = !cur.email.trim();
   $$('.mail-cc').slice(1).forEach(i => i.remove()); $('.mail-cc').value = '';
+  $('#mail-agent').disabled = !cur.agent?.trim(); $('#mail-insurer').disabled = !cur.insurer?.trim();   // only offered when that email is on the invoice
   $('#mail').showModal();
 };
 $('#mail-add').onclick = () => {   // one more Cc box, same as the first
   const i = $('.mail-cc').cloneNode(); i.value = '';
   $('#mail-ccs').append(i); i.focus();
 };
+function ccParty(who, email) {   // confirm, then drop the address into an empty Cc box (or a new one); never twice
+  email = email.trim();
+  if ($$('.mail-cc').some(i => i.value.trim().toLowerCase() === email.toLowerCase())) return;
+  if (!confirm(`Include the ${who}, ${email}, in the Cc list for this invoice?`)) return;
+  const box = $$('.mail-cc').find(i => !i.value.trim()) || ($('#mail-add').click(), $$('.mail-cc').at(-1));
+  box.value = email;
+}
+$('#mail-agent').onclick = () => ccParty('real estate agent', cur.agent);
+$('#mail-insurer').onclick = () => ccParty('insurance agent', cur.insurer);
 $('#mail-customer').onclick = () => { $('#mail-to').value = cur.email.trim(); $('#mail-to').focus(); };
 $('#mail-cancel').onclick = () => $('#mail').close('cancel');
 $('#mail form').onsubmit = async () => {
@@ -648,6 +789,8 @@ for (const [id, key] of [['s-company', 'company'], ['s-passcode', 'passcode'], [
   $('#' + id).value = settings[key];
   $('#' + id).oninput = e => { settings[key] = e.target.value; store('im.settings', settings); };
 }
+$('#s-areas').value = areaNames().join('\n');
+$('#s-areas').oninput = e => { settings.areas = e.target.value.split('\n').map(x => x.trim()).filter(Boolean); store('im.settings', settings); };
 function download(name) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify({ settings, invoices }, null, 2)], { type: 'application/json' }));
