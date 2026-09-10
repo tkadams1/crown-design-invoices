@@ -74,14 +74,14 @@ function findThunderbird(custom) {   // admin-panel override first, then the Win
   return candidates.find(p => fs.existsSync(p));
 }
 
-function email({ to = '', subject = '', body = '', pdf, mailer }) {
+function email({ to = '', cc = '', subject = '', body = '', pdf, mailer }) {
   const tb = findThunderbird(mailer);
   if (!tb) {   // no Thunderbird: fall back to the default mail program, which cannot take the attachment
-    shell.openExternal(`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    shell.openExternal(`mailto:${to}?cc=${encodeURIComponent(cc)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
     return false;
   }
   const q = s => `'${String(s).replace(/'/g, '’').replace(/"/g, '”')}'`;   // -compose quotes values with ' and has no escape for it
-  const compose = `to=${q(to)},subject=${q(subject)},body=${q(body)}` + (pdf ? `,attachment=${q(pathToFileURL(pdf).href)}` : '');   // file:// URL is the form Thunderbird documents
+  const compose = `to=${q(to)},cc=${q(cc)},subject=${q(subject)},body=${q(body)}` + (pdf ? `,attachment=${q(pathToFileURL(pdf).href)}` : '');   // file:// URL is the form Thunderbird documents
   spawn(tb, ['-compose', compose], { detached: true, stdio: 'ignore' }).unref();
   return true;
 }

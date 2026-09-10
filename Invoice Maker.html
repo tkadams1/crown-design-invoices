@@ -13,18 +13,20 @@
   button.rm { min-height: 36px; padding: 0 10px; font-size: 18px; background: #fff; color: #666; border: 1px solid #ccc; }
   input, textarea { font: inherit; padding: 6px 8px; border: 1px solid #bbb; border-radius: 4px; background: #fff; color: inherit; }
   textarea { resize: none; field-sizing: content; }
-  .bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 16px 24px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 1; }
+  .bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 16px 24px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 1100; }   /* above Leaflet’s panes (400–1000) so the map scrolls under the header */
   .bar h1 { margin: 0; flex: 1; font-size: 28px; }
   .bar .logo { height: 56px; width: auto; }
   main { max-width: 900px; margin: 0 auto; padding: 24px; }
   #editor main { zoom: var(--zoom, 1); }
   .zoomer { display: flex; align-items: center; gap: 6px; margin: 0 auto; }   /* centred in the gap between Email and Delete */
   #zoom { font-size: 16px; color: #555; min-width: 4ch; text-align: center; }
-  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
-  .stat { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; }
-  .stat b { display: block; font-size: 26px; color: #111; letter-spacing: 0; margin-top: 2px; }
+  .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat { display: flex; flex-direction: column; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; }
+  .stat b { display: block; font-size: 26px; color: #111; letter-spacing: 0; margin-top: auto; padding-top: 2px; }   /* pinned to the bottom, so every tile's number sits on one line even when a label wraps */
   .stat.due { grid-column: span 3; border-color: #fca5a5; background: #fef2f2; }
-  .stat.jobs { grid-column: span 2; }
+  .stat.jobs { grid-column: span 3; }
+  .stat.none { background: #f3f4f6; border-color: #6b7280; color: #4b5563; }
+  .stat.none b { color: #4b5563; }
   .stat.due b { color: #b91c1c; }
   #list .due { font-size: 15px; color: #b91c1c; font-weight: normal; text-align: right; }
   /* Map of jobs */
@@ -73,6 +75,13 @@
   dialog input { display: block; width: 100%; box-sizing: border-box; font-size: 24px; margin-top: 8px; }
   dialog .row { display: flex; gap: 12px; }
   dialog .row button { flex: 1; }
+  #mail { width: min(720px, 92vw); }
+  #printd { width: min(720px, 92vw); padding: 32px; }
+  #printd h2 { margin: 0 0 12px; font-size: 26px; }
+  #printd p { margin: 0 0 24px; font-size: 22px; color: #444; }
+  #printd select { display: block; width: 100%; box-sizing: border-box; font-size: 22px; padding: 10px; margin-top: 8px; border: 1px solid #ccc; border-radius: 8px; background: #fff; }
+  #printd .row { margin-top: 32px; }
+  #mail-ccs input + input { margin-top: 8px; }
   .confirm .row button { flex: 1; }
   button:disabled { opacity: .4; cursor: not-allowed; }
   details { margin-top: 32px; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; }
@@ -98,6 +107,15 @@
   .meta textarea { min-height: 2.4em; }
   .meta input { margin-top: 6px; }
   #f-intro { width: 100%; box-sizing: border-box; }
+  /* While typing in a field, its placeholder text sits beside it so you still know what it is for */
+  .fld { display: flex; flex: 1; gap: 8px; align-items: baseline; min-width: 0; }
+  .fld > :first-child { flex: 1; min-width: 0; }
+  .fld > span { font-size: 13px; color: #888; white-space: nowrap; visibility: hidden; }
+  .fld > :focus:not(:placeholder-shown) + span { visibility: visible; }
+  /* Phone (10 digits, dashes/dots/spaces optional) and email are checked once you leave the field */
+  .fld > :user-invalid { border-color: #b91c1c; outline-color: #b91c1c; }
+  .fld > :user-invalid + span { visibility: visible; color: #b91c1c; }
+  .fld > :user-invalid + span::after { content: " – doesn't look right"; }
   #sections { padding-left: 32px; margin: 24px 0 8px; }
   .section { margin-bottom: 20px; }
   .sec-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
@@ -115,7 +133,7 @@
   @page { margin: 0; }   /* no browser header/footer (url, page #, date) */
   @media print {
     body { background: #fff; }
-    .no-print, #home, button { display: none !important; }
+    .no-print, #home, button, .fld > span { display: none !important; }
     main { max-width: none; padding: 0.5in 0.6in; zoom: 1; }
     #doc { border: 0; box-shadow: none; padding: 0; font-size: 12pt; }
     input, textarea { border: 0; padding: 0; background: none; font-size: inherit; color: #000; }
@@ -162,7 +180,7 @@
       <label>Address <textarea id="s-address" rows="2"></textarea></label>
       <label>Phone <input id="s-phone"></label>
       <label>Mail program, only if Email cannot find Thunderbird (full path to thunderbird.exe) <input id="s-mailer" placeholder="leave blank to find it automatically"></label>
-      <label>Printer for the Print button <select id="s-printer"><option value="auto">Automatic: his real printer, never “Print to PDF”</option><option value="ask">Ask every time (print dialog)</option></select></label>
+      <label>Printer for the Print button <select id="s-printer"><option value="popup">Popup: confirm the customer and pick the printer (default)</option><option value="direct">Just print: straight to his real printer, never “Print to PDF”</option><option value="ask">Windows print dialog every time</option></select></label>
       <label>Agreement sentence (top of every invoice) <input id="s-intro"></label>
       <div class="row">
         <label>Overhead % <input id="s-overhead" type="number" min="0" step="0.5"></label>
@@ -190,6 +208,26 @@
     <label>Admin passcode <input id="pass-in" type="password" inputmode="numeric" autocomplete="off" autofocus></label>
     <p id="pass-msg" style="color:#b91c1c;margin:-8px 0 16px;min-height:1.2em"></p>
     <div class="row"><button type="button" id="pass-cancel" class="secondary">Cancel</button><button value="ok">Unlock</button></div>
+  </form>
+</dialog>
+
+<dialog id="mail">
+  <form method="dialog">
+    <label><span style="display:flex;justify-content:space-between;align-items:center;gap:12px">Who would you like to email this invoice to?<button type="button" id="mail-customer" class="secondary" style="font-size:13px;padding:4px 10px;white-space:nowrap">Use the customer’s email</button></span>
+      <input id="mail-to" type="email" placeholder="name@example.com" autocomplete="off" required autofocus>
+    </label>
+    <label>Cc (optional)<div id="mail-ccs"><input class="mail-cc" type="email" placeholder="someone@example.com" autocomplete="off"></div></label>
+    <button type="button" id="mail-add" class="secondary" style="width:100%">＋ Cc another person</button>
+    <div class="row" style="margin-top:32px"><button type="button" id="mail-cancel" class="secondary">Cancel</button><button value="ok">📧 Email</button></div>
+  </form>
+</dialog>
+
+<dialog id="printd">
+  <form method="dialog">
+    <h2>🖨 Print this invoice</h2>
+    <p id="print-msg"></p>
+    <label>Printer <select id="print-to"></select></label>
+    <div class="row"><button type="button" id="print-cancel" class="secondary">Cancel</button><button value="ok">Print</button></div>
   </form>
 </dialog>
 
@@ -245,13 +283,13 @@
       <div class="meta">
         <div>
           <div class="lbl">Customer</div>
-          <textarea id="f-customer" rows="2" placeholder="Customer name" aria-label="Customer"></textarea>
-          <input id="f-phone" type="tel" placeholder="Customer phone" aria-label="Customer phone">
-          <input id="f-email" type="email" placeholder="Customer email" aria-label="Customer email">
+          <label class="fld"><textarea id="f-customer" rows="2" placeholder="Customer name" aria-label="Customer"></textarea><span>Customer name</span></label>
+          <label class="fld"><input id="f-phone" type="tel" inputmode="numeric" pattern="\d{3}-\d{3}-\d{4}" placeholder="Customer phone" aria-label="Customer phone"><span>Customer phone</span></label>
+          <label class="fld"><input id="f-email" type="email" placeholder="Customer email" aria-label="Customer email"><span>Customer email</span></label>
         </div>
-        <div><div class="lbl">Job address</div><textarea id="f-address" rows="3" placeholder="Street, city, state, zip" aria-label="Job address"></textarea></div>
+        <div><div class="lbl">Job address</div><label class="fld"><textarea id="f-address" rows="3" placeholder="Street, city, state, zip" aria-label="Job address"></textarea><span>Street, city, state, zip</span></label></div>
       </div>
-      <input id="f-intro" placeholder="Agreement sentence" aria-label="Agreement sentence">
+      <label class="fld"><input id="f-intro" placeholder="Agreement sentence" aria-label="Agreement sentence"><span>Agreement sentence</span></label>
       <ol id="sections"></ol>
       <button id="add-section" class="secondary no-print">+ Add Area (bathroom, painting, …)</button>
       <table class="totals">
@@ -268,7 +306,7 @@
 <template id="t-section">
   <li class="section">
     <div class="sec-head">
-      <input class="sec-title" placeholder="Area (e.g. master bath)" aria-label="Area name">
+      <label class="fld"><input class="sec-title" placeholder="Area (e.g. master bath)" aria-label="Area name"><span>Area (e.g. master bath)</span></label>
       <button class="rm no-print" tabindex="-1" title="Remove this area">✕</button>
     </div>
     <div class="items"></div>
@@ -277,7 +315,7 @@
 </template>
 <template id="t-item">
   <div class="item">
-    <textarea class="desc" rows="1" placeholder="Description of work" aria-label="Description of work"></textarea>
+    <label class="fld"><textarea class="desc" rows="1" placeholder="Description of work" aria-label="Description of work"></textarea><span>Description of work</span></label>
     <input class="amt" inputmode="decimal" placeholder="0.00" aria-label="Amount">
     <button class="rm no-print" tabindex="-1" title="Remove this line">✕</button>
   </div>
@@ -302,6 +340,7 @@ const needsGeo = inv => !!geoKey(inv.address) && !(inv.geo?.q === geoKey(inv.add
 
 <script type="module">
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 const desktop = window.api;   // set by preload.js inside the desktop app; missing when the file is opened in a plain browser
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const snapshot = () => JSON.stringify({ settings, invoices, savedAt: new Date().toISOString() }, null, 2);
@@ -313,7 +352,7 @@ const store = (k, v) => {
 const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in local time
 const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('en-US') : '';
 
-const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', printer: 'auto', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
+const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', printer: 'popup', intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
 const file = desktop ? await desktop.loadData() : null;   // { settings, invoices } from invoices.json, or null on first run
 let settings = { ...DEFAULTS, ...(file?.settings ?? load('im.settings', {})) };
 let invoices = file?.invoices ?? load('im.invoices', []);
@@ -328,7 +367,8 @@ function renderStats() {
   const tile = (label, value, cls = '', q = '') => `<div class="stat ${cls}" data-q="${q}" data-s="${q}">${label}<b>${value}</b></div>`;
   $('#stats').innerHTML = tile('Outstanding payments', fmt(invoices.reduce((a, i) => a + balance(i), 0)), 'due')
     + tile('Jobs', invoices.length, 'jobs')
-    + STATUSES.map(st => tile(st, invoices.filter(i => i.status === st).length, '', st)).join('');
+    + STATUSES.map(st => tile(st, invoices.filter(i => i.status === st).length, '', st)).join('')
+    + tile('No status', invoices.filter(i => !i.status).length, 'none', 'no status');
 }
 $('#stats').onclick = e => { const t = e.target.closest('.stat'); if (t) { $('#search').value = t.dataset.q; renderList(); } };   // click a status tile to filter the list
 
@@ -347,7 +387,7 @@ function renderList() {
   renderStats();
   const q = $('#search').value.trim().toLowerCase();
   const rows = invoices
-    .filter(i => !q || [i.number, i.date, fmtDate(i.date), i.customer, i.phone, i.email, i.address, i.status, fmtDate(i.start), fmtDate(i.end)].join(' ').toLowerCase().includes(q))
+    .filter(i => !q || (q === 'no status' ? !i.status : [i.number, i.date, fmtDate(i.date), i.customer, i.phone, i.email, i.address, i.status, fmtDate(i.start), fmtDate(i.end)].join(' ').toLowerCase().includes(q)))
     .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);   // newest invoice date first, so months group together
   $('#list').innerHTML = '';
   $('#empty').hidden = rows.length > 0;
@@ -434,8 +474,7 @@ function newInvoice() {
   const next = Math.max(0, ...invoices.map(i => parseInt(i.number) || 0)) + 1;
   const inv = { id: Date.now().toString(36), number: String(next), date: today(), status: '', start: '', end: '', paid: '', customer: '', phone: '', email: '', address: '', intro: settings.intro,
     sections: [{ title: '', items: [{ desc: '', amount: '' }] }], overheadPct: settings.overheadPct, profitPct: settings.profitPct, updatedAt: Date.now() };
-  invoices.push(inv);
-  openInvoice(inv);
+  openInvoice(inv);   // joins the list on the first keystroke (save), so Back or closing without typing leaves nothing behind
   $('#f-customer').focus();
 }
 
@@ -444,6 +483,7 @@ function openInvoice(inv) {
   dailyBackup();
   cur = inv;
   $('#home').hidden = true; $('#editor').hidden = false;
+  $('#delete').disabled = true; setTimeout(() => $('#delete').disabled = false, 2000);   // double-clicking New can't land on Delete
   $('#d-company').textContent = settings.company;
   $('#d-address').textContent = settings.address; $('#d-phone').textContent = settings.phone;
   $('#f-status').value = inv.status || ''; $('#f-start').value = inv.start || ''; $('#f-end').value = inv.end || ''; $('#f-paid').value = inv.paid || ''; $('#f-customer').value = inv.customer || ''; $('#f-phone').value = inv.phone || ''; $('#f-email').value = inv.email || ''; $('#f-address').value = inv.address; $('#f-date').value = inv.date; $('#f-number').value = inv.number;
@@ -499,6 +539,7 @@ function refresh() {
 
 let saveTimer;
 function save() {   // autosave: called on every keystroke, debounced
+  if (!invoices.includes(cur)) invoices.push(cur);
   refresh();
   cur.updatedAt = Date.now();
   clearTimeout(saveTimer);
@@ -523,6 +564,10 @@ $('#pass form').onsubmit = e => {
 $('#back').onclick = showHome;
 $('#search').oninput = renderList;
 $('#add-section').onclick = () => { addSectionEl({ title: '', items: [{ desc: '', amount: '' }] }).querySelector('.sec-title').focus(); save(); };
+$('#f-phone').oninput = e => {   // digits only, dashes added as he types: 5551234567 -> 555-123-4567
+  const d = e.target.value.replace(/\D/g, '').slice(0, 10);
+  e.target.value = d.replace(/^(\d{3})(\d{1,3})?(\d{1,4})?$/, (_, a, b, c) => a + (b ? '-' + b : '') + (c ? '-' + c : ''));
+};
 $('#editor').addEventListener('input', save);
 $('#editor').addEventListener('focusout', e => {   // tidy "650" into "650.00" once he leaves the box
   if (e.target.matches('.amt') && e.target.value.trim()) { e.target.value = fmt(toCents(e.target.value)).replace('$', ''); save(); }
@@ -541,28 +586,60 @@ $('#c-type').oninput = e => $('#c-delete').disabled = e.target.value.trim().toLo
 $('#c-type').onkeydown = e => { if (e.key === 'Enter' && !$('#c-delete').disabled) $('#c-delete').click(); };
 $('#c-cancel').onclick = () => { $('#confirm').hidden = true; $('#editor').hidden = false; };
 $('#c-delete').onclick = () => { invoices = invoices.filter(i => i !== cur); store('im.invoices', invoices); cur = null; $('#confirm').hidden = true; showHome(); };
+function missingInfo() {   // print, PDF and email all need a customer and a job address on the invoice
+  const miss = !cur.customer.trim() ? '#f-customer' : !cur.address.trim() ? '#f-address' : null;
+  if (miss) { $('#saved').textContent = `Fill in the ${miss === '#f-customer' ? 'customer name' : 'job address'} first.`; $(miss).focus(); }
+  return !!miss;
+}
 $('#print').onclick = async () => {
+  if (missingInfo()) return;
   if (!desktop) { document.title = pdfName(); return window.print(); }   // plain browser: the print dialog
-  $('#saved').textContent = 'Printing…';
-  const r = await desktop.print(settings.printer || 'auto');
-  $('#saved').textContent = r === 'dialog' ? '' : r.startsWith('error:') ? `Could not print: ${r.slice(6)}` : `Sent to ${r}`;
+  const choice = $('#s-printer').value;   // already normalised: popup | direct | ask | a printer that exists
+  if (choice !== 'popup') return sendToPrinter(choice);
+  const who = (cur.customer.split('\n')[0] || '').trim(), where = (cur.address.split('\n')[0] || '').trim();
+  $('#print-msg').textContent = `Print the invoice${who ? ' for ' + who : ''}${where ? ' at ' + where : ''}?`;
+  const all = await desktop.printers(), real = all.filter(p => !p.virtual), list = real.length ? real : all;   // paper printers only, unless that leaves none
+  const sel = $('#print-to'); sel.innerHTML = '';
+  for (const p of list) sel.append(Object.assign(document.createElement('option'), { value: p.name, textContent: p.name }));
+  sel.value = list.some(p => p.name === settings.printer) ? settings.printer : (list.find(p => p.isDefault) || list[0] || {}).name;
+  $('#printd').showModal();
 };
+$('#print-cancel').onclick = () => $('#printd').close('cancel');
+$('#printd form').onsubmit = () => sendToPrinter($('#print-to').value);
+async function sendToPrinter(choice) {   // 'ask' -> Windows dialog; a printer name -> that one; anything else -> his real printer
+  $('#saved').textContent = 'Printing…';
+  const r = await desktop.print(choice);
+  $('#saved').textContent = r === 'dialog' ? '' : r.startsWith('error:') ? `Could not print: ${r.slice(6)}` : `Sent to ${r}`;
+}
 const pdfName = () => `Invoice ${cur.number} - ${((cur.customer || cur.address).split('\n')[0] || '').trim()}`;
 $('#pdf').onclick = async () => {
+  if (missingInfo()) return;
   if (!desktop) { $('#saved').textContent = 'In the print window, choose “Save as PDF” as the printer.'; return $('#print').click(); }
   $('#saved').textContent = `PDF saved: ${await desktop.savePdf(pdfName())}`;
 };
-$('#email').onclick = async () => {
+$('#email').onclick = () => {
+  if (missingInfo()) return;
+  $('#mail-to').value = cur.email.trim(); $('#mail-customer').disabled = !cur.email.trim();
+  $$('.mail-cc').slice(1).forEach(i => i.remove()); $('.mail-cc').value = '';
+  $('#mail').showModal();
+};
+$('#mail-add').onclick = () => {   // one more Cc box, same as the first
+  const i = $('.mail-cc').cloneNode(); i.value = '';
+  $('#mail-ccs').append(i); i.focus();
+};
+$('#mail-customer').onclick = () => { $('#mail-to').value = cur.email.trim(); $('#mail-to').focus(); };
+$('#mail-cancel').onclick = () => $('#mail').close('cancel');
+$('#mail form').onsubmit = async () => {
+  const to = $('#mail-to').value.trim(), cc = $$('.mail-cc').map(i => i.value.trim()).filter(Boolean).join(',');
   const who = (cur.customer.split('\n')[0] || '').trim();
-  const to = cur.email.trim();
-  const subject = `Invoice ${cur.number} from ${settings.company}`;
-  const body = `Hello${who ? ' ' + who : ''},\n\nAttached is invoice #${cur.number} for the work at ${(cur.address.split('\n')[0] || 'your address').trim()}. The total is ${fmt(totals(cur).final)}.\n\nThank you,\n${settings.company}\n${settings.phone}`;
+  const subject = `Invoice from ${settings.company}`;
+  const body = `Hello${who ? ' ' + who : ''},\n\nAttached is your invoice for the work at ${(cur.address.split('\n')[0] || 'your address').trim()}. The total is ${fmt(totals(cur).final)}.\n\nThank you,\n${settings.company}\n${settings.phone}`;
   if (!desktop) {   // plain browser: mailto cannot carry an attachment
-    location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    location.href = `mailto:${to}?cc=${encodeURIComponent(cc)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     return $('#saved').textContent = 'Your mail program is opening. Attach the PDF you saved.';
   }
   const pdf = await desktop.savePdf(pdfName());
-  const ok = await desktop.email({ to, subject, body, pdf, mailer: settings.mailer });
+  const ok = await desktop.email({ to, cc, subject, body, pdf, mailer: settings.mailer });
   $('#saved').textContent = ok ? 'Thunderbird is opening with the PDF attached.' : `Thunderbird not found. PDF saved: ${pdf}`;
 };
 addEventListener('afterprint', () => document.title = 'Crown Design Invoices');
@@ -607,7 +684,7 @@ $('#restore-file').onchange = async e => {
 // ---------- Printer choice (desktop app only) ----------
 if (desktop) desktop.printers().then(list => {
   for (const p of list) { const o = document.createElement('option'); o.value = p.name; o.textContent = p.name + (p.isDefault ? ' (Windows default)' : '') + (p.virtual ? ' (makes a file, not paper)' : ''); $('#s-printer').append(o); }
-  $('#s-printer').value = list.some(p => p.name === settings.printer) || ['auto', 'ask'].includes(settings.printer) ? settings.printer : 'auto';
+  $('#s-printer').value = list.some(p => p.name === settings.printer) || ['direct', 'ask'].includes(settings.printer) ? settings.printer : 'popup';   // the old 'auto' default becomes the popup
 });
 $('#s-printer').onchange = e => { settings.printer = e.target.value; store('im.settings', settings); };
 
