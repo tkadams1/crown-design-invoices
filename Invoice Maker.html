@@ -295,6 +295,13 @@
   </form>
 </dialog>
 
+<dialog id="ask">
+  <form method="dialog">
+    <p id="ask-msg" style="margin:0 0 24px"></p>
+    <div class="row"><button type="button" id="ask-cancel" class="secondary">Cancel</button><button value="ok" id="ask-ok" autofocus>OK</button></div>
+  </form>
+</dialog>
+
 <section id="confirm" hidden>
   <div class="bar"><h1>Delete invoice</h1></div>
   <main class="confirm">
@@ -571,9 +578,9 @@ function addSectionEl(sec) {
   li.querySelector('.sec-title').value = sec.title;
   sec.items.forEach(it => addItemEl(li, it));
   li.querySelector('.add-item').onclick = () => { addItemEl(li, { desc: '', amount: '' }).querySelector('.desc').focus(); save(); };
-  li.querySelector('.sec-head .rm').onclick = () => {
+  li.querySelector('.sec-head .rm').onclick = async () => {
     const hasContent = [...li.querySelectorAll('input,textarea')].some(x => x.value.trim());
-    if (!hasContent || confirm('Remove this whole area and all its lines?')) { li.remove(); save(); }
+    if (!hasContent || await ask('Remove this whole area and all its lines?', 'Remove')) { li.remove(); save(); }
   };
   $('#sections').append(li);
   return li;
@@ -634,6 +641,16 @@ $('#pass form').onsubmit = e => {
   else { e.preventDefault(); $('#pass-msg').textContent = 'Wrong passcode, try again.'; $('#pass-in').select(); }
 };
 $('#back').onclick = showHome;
+// In-page yes/no and notice boxes. The browser's own alert and confirm boxes must not be used: in the desktop app on Windows they leave
+// every field unable to take typed text (no caret, Backspace still works) until the app is restarted. electron/electron#20400
+function ask(msg, ok = 'OK', cancel = 'Cancel') {   // -> Promise<boolean>; cancel = null for a notice with only an OK button
+  const d = $('#ask');
+  $('#ask-msg').textContent = msg; $('#ask-ok').textContent = ok;
+  $('#ask-cancel').hidden = !cancel; $('#ask-cancel').textContent = cancel || '';
+  d.returnValue = ''; d.showModal();
+  return new Promise(r => d.onclose = () => r(d.returnValue === 'ok'));
+}
+$('#ask-cancel').onclick = () => $('#ask').close('cancel');
 { let t; new MutationObserver(() => {   // messages written to #saved: save status drives the check circle, everything else pops the snackbar and fades
     const msg = $('#saved').textContent;
     if (msg === 'Saving…' || msg === '✓ Saved') {
@@ -759,10 +776,10 @@ $('#mail-add').onclick = () => {   // one more Cc box, same as the first
   const i = $('.mail-cc').cloneNode(); i.value = '';
   $('#mail-ccs').append(i); i.focus();
 };
-function ccParty(who, email) {   // confirm, then drop the address into an empty Cc box (or a new one); never twice
+async function ccParty(who, email) {   // confirm, then drop the address into an empty Cc box (or a new one); never twice
   email = email.trim();
   if ($$('.mail-cc').some(i => i.value.trim().toLowerCase() === email.toLowerCase())) return;
-  if (!confirm(`Include the ${who}, ${email}, in the Cc list for this invoice?`)) return;
+  if (!await ask(`Include the ${who}, ${email}, in the Cc list for this invoice?`, 'Include')) return;
   const box = $$('.mail-cc').find(i => !i.value.trim()) || ($('#mail-add').click(), $$('.mail-cc').at(-1));
   box.value = email;
 }
@@ -799,7 +816,7 @@ function download(name) {
   URL.revokeObjectURL(a.href);
 }
 $('#backup').onclick = () => download(`invoices-backup-${today()}.json`);
-$('#folder').onclick = () => desktop ? desktop.openBackups() : alert('Daily backups only run in the desktop app.');
+$('#folder').onclick = () => desktop ? desktop.openBackups() : ask('Daily backups only run in the desktop app.', 'OK', null);
 
 async function dailyBackup() {   // desktop app only: once a day write invoices-auto-<date>.json into the app's own data folder
   const last = localStorage.getItem('im.lastBackup');
@@ -818,9 +835,9 @@ $('#restore-file').onchange = async e => {
     for (const inv of data.invoices) byId.set(inv.id, inv);   // backup wins on the same id; others are kept
     invoices = [...byId.values()]; store('im.invoices', invoices);
     if (data.settings) { settings = { ...settings, ...data.settings }; store('im.settings', settings); }
-    alert(`Restored. You now have ${invoices.length} invoices.`);
+    await ask(`Restored. You now have ${invoices.length} invoices.`, 'OK', null);
     location.reload();
-  } catch { alert('That file is not a valid backup.'); }
+  } catch { ask('That file is not a valid backup.', 'OK', null); }
   e.target.value = '';
 };
 

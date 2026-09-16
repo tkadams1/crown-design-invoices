@@ -44,4 +44,8 @@ assert.equal(needsGeo({ address: '12 Main St Springfield', geo: { q: '12 Main St
 assert.equal(needsGeo({ address: '12 Main St Springfield', geo: { q: '12 Main St Springfield', src: 'census' } }), false);   // a miss is not retried
 assert.equal(needsGeo({ address: '13 Main St Springfield', geo: { q: '12 Main St Springfield', lat: 1, lon: 2, src: 'census' } }), true);   // address changed
 
+// The browser's native alert/confirm/prompt boxes must never come back: in the desktop app on Windows they leave every field
+// unable to take typed text (no caret, Backspace still works) until the app is restarted. electron/electron#20400. Use ask() instead.
+assert.doesNotMatch(html, /\b(?:window\.)?(?:alert|confirm|prompt)\(/);
+
 console.log('ok');

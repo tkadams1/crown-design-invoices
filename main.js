@@ -115,7 +115,7 @@ ipcMain.handle('printers', async () => (await win.webContents.getPrintersAsync()
 ipcMain.handle('print', async (e, choice) => {   // choice: 'auto' | 'ask' | exact printer name  ->  printer name used, 'dialog', or 'error:...'
   const list = await win.webContents.getPrintersAsync();
   const p = choice === 'ask' ? null : list.find(x => x.name === choice) || realPrinter(list);
-  if (!p) { win.webContents.print({ printBackground: true }); return 'dialog'; }
+  if (!p) { win.webContents.print({ printBackground: true }, () => { win.blur(); win.focus(); }); return 'dialog'; }   // blur+focus: after a native dialog, Windows otherwise stops delivering typed text to the page (electron/electron#20400)
   return new Promise(res => win.webContents.print(
     { silent: true, deviceName: p.name, printBackground: true, pageSize: 'Letter', margins: { marginType: 'none' } },
     (ok, err) => res(ok ? p.name : 'error:' + err)));
