@@ -736,7 +736,15 @@ $('#c-type').oninput = e => $('#c-delete').disabled = e.target.value.trim().toLo
 $('#c-type').onkeydown = e => { if (e.key === 'Enter' && !$('#c-delete').disabled) $('#c-delete').click(); };
 $('#c-cancel').onclick = () => { $('#confirm').hidden = true; $('#editor').hidden = false; };
 $('#c-delete').onclick = () => { invoices = invoices.filter(i => i !== cur); store('im.invoices', invoices); cur = null; $('#confirm').hidden = true; showHome(); };
+function dropEmptyAreas() {   // an area with no title, no description and no amount is deleted before the invoice goes out, so the printed list has no blank number
+  const blank = li => ![...li.querySelectorAll('input,textarea')].some(x => x.value.trim());
+  const areas = [...$('#sections').children];
+  if (areas.every(blank)) return;   // nothing typed anywhere yet: leave the one empty area so the form still has a place to type
+  areas.filter(blank).forEach(li => li.remove());
+  save();
+}
 function missingInfo() {   // print, PDF and email all need a customer and a job address on the invoice
+  dropEmptyAreas();   // the one gate all three go through, so all three print the same tidied list
   const miss = !cur.customer.trim() ? '#f-customer' : !cur.address.trim() ? '#f-address' : null;
   if (miss) { $('#saved').textContent = `Fill in the ${miss === '#f-customer' ? 'customer name' : 'job address'} first.`; $(miss).focus(); }
   return !!miss;
