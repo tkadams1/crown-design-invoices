@@ -5,5 +5,7 @@ dist/
 *.pdf
 *.png
 !logo.png
+# the macOS app icon: electron-builder needs a square png of at least 512x512
+!crown_design_logo.png
 .vscode/
 TODO

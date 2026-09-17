@@ -28,3 +28,21 @@ jobs:
       - run: npx electron-builder --win nsis --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  mac:
+    needs: windows   # the tag and release are made there; this job only uploads into them
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm test   # money math + Electron smoke run (fails on any page error)
+      - name: Version   # same major.minor + run number as the Windows job, so one release carries one version
+        run: |
+          v=$(node -e "const v=require('./package.json').version.split('.');console.log(v[0]+'.'+v[1]+'.'+process.env.GITHUB_RUN_NUMBER)")
+          npm version $v --no-git-tag-version
+      - run: npx electron-builder --mac --universal --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false   # no Apple certificate on the runner: build unsigned rather than fail looking for one

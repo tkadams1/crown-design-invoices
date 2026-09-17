@@ -24,6 +24,11 @@
     "directories": {
       "output": "dist"
     },
+    "mac": {
+      "icon": "crown_design_logo.png",
+      "category": "public.app-category.business",
+      "target": "dmg"
+    },
     "win": {
       "icon": "invoice.ico",
       "target": "nsis"
