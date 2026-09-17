@@ -236,6 +236,8 @@
     <details id="settings" hidden>
       <summary>Company info &amp; backup</summary>
       <label>Company name <input id="s-company"></label>
+      <label>Logo, shown on every invoice and in the top bar <input id="s-logo" type="file" accept="image/*"></label>
+      <div class="row" style="align-items:center;gap:16px;margin:-8px 0 16px"><img id="s-logo-now" alt="" style="height:56px;width:auto"><button id="s-logo-clear" class="secondary">Use the built-in logo</button></div>
       <label>Admin passcode <input id="s-passcode" inputmode="numeric" autocomplete="off"></label>
       <label>Address <textarea id="s-address" rows="2"></textarea></label>
       <label>Phone <input id="s-phone"></label>
@@ -430,7 +432,7 @@ const today = () => new Date().toLocaleDateString('en-CA');   // YYYY-MM-DD in l
 const fmtDate = d => d ? new Date(d + 'T00:00').toLocaleDateString('en-US') : '';
 
 const SEED_AREAS = ['Attic', 'Basement', 'Bedroom', 'Closet', 'Deck', 'Den', 'Dining room', 'Doors', 'Drywall', 'Electrical', 'Entry', 'Exterior', 'Family room', 'Fence', 'Final cleanup', 'Flooring', 'Garage', 'Guest bath', 'Half bath', 'Hall bath', 'Hallway', 'Kitchen', 'Landscaping', 'Laundry room', 'Living room', 'Master bath', 'Master bedroom', 'Office', 'Painting', 'Patio', 'Plumbing', 'Porch', 'Roof', 'Stairs', 'Trim', 'Windows'];
-const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', printer: 'popup', areas: [], areasSeeded: false, intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
+const DEFAULTS = { company: 'Your Company Name', address: '', phone: '', logo: '', passcode: '1234', autoUpdate: true, zoom: 1, mailer: '', printer: 'popup', areas: [], areasSeeded: false, intro: 'This is an agreement to complete the work at the above address.', overheadPct: 10, profitPct: 10 };
 const file = desktop ? await desktop.loadData() : null;   // { settings, invoices } from invoices.json, or null on first run
 let settings = { ...DEFAULTS, ...(file?.settings ?? load('im.settings', {})) };
 let invoices = file?.invoices ?? load('im.invoices', []);
@@ -806,6 +808,26 @@ for (const [id, key] of [['s-company', 'company'], ['s-passcode', 'passcode'], [
   $('#' + id).value = settings[key];
   $('#' + id).oninput = e => { settings[key] = e.target.value; store('im.settings', settings); };
 }
+// Logo: any picture he picks is scaled down to 600px wide and kept in settings as a data URL, so a 700 KB camera photo
+// doesn't ride along in every save. Blank = the logo.png shipped with the app.
+const applyLogo = () => { const src = settings.logo || 'logo.png'; for (const img of $$('img.logo')) img.src = src; $('#s-logo-now').src = src; };
+$('#s-logo').onchange = async e => {
+  const f = e.target.files[0];
+  e.target.value = '';   // so picking the same file twice still fires
+  if (!f) return;
+  try {
+    const bmp = await createImageBitmap(f);
+    const scale = Math.min(1, 600 / bmp.width);
+    const c = Object.assign(document.createElement('canvas'), { width: Math.round(bmp.width * scale), height: Math.round(bmp.height * scale) });
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    settings.logo = c.toDataURL(f.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', 0.9);
+    store('im.settings', settings);
+    applyLogo();
+  } catch { ask('That file could not be read as a picture. Try a PNG or JPG.', 'OK', null); }
+};
+$('#s-logo-clear').onclick = () => { settings.logo = ''; store('im.settings', settings); applyLogo(); };
+applyLogo();
+
 $('#s-areas').value = areaNames().join('\n');
 $('#s-areas').oninput = e => { settings.areas = e.target.value.split('\n').map(x => x.trim()).filter(Boolean); store('im.settings', settings); };
 function download(name) {
